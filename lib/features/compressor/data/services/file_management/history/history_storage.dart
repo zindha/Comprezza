@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:path/path.dart' as p;
 
@@ -148,28 +149,48 @@ final class JsonHistoryStorage implements HistoryStorage {
       throw FileSystemException(error.message);
     }
     final String contents = (readResult as Success<String>).value;
-    final Object? decoded;
-    try {
-      decoded = jsonDecode(contents);
-    } on FormatException catch (error, stackTrace) {
-      throw FormatException('History storage is corrupted: $error', stackTrace);
-    }
-    if (decoded is! List<Object?>) {
-      throw const FormatException('History storage has an invalid shape.');
-    }
-    final List<CompressionHistoryRecord> records = <CompressionHistoryRecord>[];
-    for (final Object? entry in decoded) {
-      if (entry is! Map<String, Object?>) {
-        throw const FormatException('History record has an invalid shape.');
+    // Decoding and parsing the whole document is pure CPU work that would
+    // otherwise block the UI isolate when the read completes (exactly when the
+    // route transition is animating on first visit). Run it on a background
+    // isolate; records are plain data so they cross the boundary safely.
+    return _parseHistoryDocument(contents);
+  }
+
+  /// Decodes and parses a history document on a background isolate.
+  ///
+  /// Static so the isolate closure captures only the sendable [contents]
+  /// string, never this storage instance or its filesystem dependencies.
+  static Future<List<CompressionHistoryRecord>> _parseHistoryDocument(
+    String contents,
+  ) {
+    return Isolate.run<List<CompressionHistoryRecord>>(() {
+      final Object? decoded;
+      try {
+        decoded = jsonDecode(contents);
+      } on FormatException catch (error, stackTrace) {
+        throw FormatException(
+          'History storage is corrupted: $error',
+          stackTrace,
+        );
       }
-      final CompressionHistoryRecord? record =
-          CompressionHistoryRecord.fromJson(entry);
-      if (record == null) {
-        throw const FormatException('History record is invalid.');
+      if (decoded is! List<Object?>) {
+        throw const FormatException('History storage has an invalid shape.');
       }
-      records.add(record);
-    }
-    return records;
+      final List<CompressionHistoryRecord> records =
+          <CompressionHistoryRecord>[];
+      for (final Object? entry in decoded) {
+        if (entry is! Map<String, Object?>) {
+          throw const FormatException('History record has an invalid shape.');
+        }
+        final CompressionHistoryRecord? record =
+            CompressionHistoryRecord.fromJson(entry);
+        if (record == null) {
+          throw const FormatException('History record is invalid.');
+        }
+        records.add(record);
+      }
+      return records;
+    });
   }
 
   Result<T> _failure<T>(Object error, StackTrace stackTrace) {

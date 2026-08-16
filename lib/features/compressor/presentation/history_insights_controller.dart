@@ -106,13 +106,17 @@ typedef HistoryExportCallback =
 class HistoryInsightsController extends ChangeNotifier {
   HistoryInsightsController({
     Iterable<HistoryEntry> entries = const <HistoryEntry>[],
+    HistoryInsights? insights,
     this.onDelete,
     this.onRestore,
     this.onShare,
     this.onCompressAgain,
     this.onExport,
   }) : _allEntries = _uniqueEntries(entries) {
-    _cachedInsights = _calculateInsights(_allEntries);
+    // A caller may hand in precomputed insights (computed on a background
+    // isolate) so the first History build stays cheap; otherwise they are
+    // derived here from the entries.
+    _cachedInsights = insights ?? calculateHistoryInsights(_allEntries);
   }
 
   final List<HistoryEntry> _allEntries;
@@ -344,7 +348,7 @@ class HistoryInsightsController extends ChangeNotifier {
       );
     _visibleEntries.sort(_compare);
     if (insightsChanged) {
-      _cachedInsights = _calculateInsights(
+      _cachedInsights = calculateHistoryInsights(
         _allEntries.where(
           (HistoryEntry entry) => !_hiddenIds.contains(entry.id),
         ),
@@ -424,160 +428,6 @@ class HistoryInsightsController extends ChangeNotifier {
     };
   }
 
-  HistoryInsights _calculateInsights(Iterable<HistoryEntry> source) {
-    final List<HistoryEntry> entries = source.toList(growable: false);
-    if (entries.isEmpty) {
-      return const HistoryInsights(
-        imagesCompressed: 0,
-        todaySavings: 0,
-        weekSavings: 0,
-        monthSavings: 0,
-        lifetimeSaved: 0,
-        averageRatio: 0,
-        averageProcessingTime: Duration.zero,
-        largestImageBytes: 0,
-        largestSavingBytes: 0,
-        mostUsedPreset: null,
-        mostUsedFormat: null,
-        mostCommonImageType: null,
-        batchSessionsCompleted: 0,
-        savedByDay: <int>[0, 0, 0, 0, 0, 0, 0],
-        ratioBySession: <double>[],
-      );
-    }
-    final DateTime today = _localDay(DateTime.now());
-    final DateTime weekStart = today.subtract(const Duration(days: 6));
-    int imagesCompressed = 0;
-    int todaySavings = 0;
-    int weekSavings = 0;
-    int monthSavings = 0;
-    int lifetimeSaved = 0;
-    int largestImageBytes = 0;
-    int largestSavingBytes = 0;
-    int batchSessionsCompleted = 0;
-    double ratioTotal = 0;
-    Duration totalDuration = Duration.zero;
-    final Map<String, int> presets = <String, int>{};
-    final Map<String, int> formats = <String, int>{};
-    final Map<String, int> sourceTypes = <String, int>{};
-    final List<int> savedByDay = List<int>.filled(7, 0);
-
-    for (final HistoryEntry entry in entries) {
-      final CompressionStatistics statistics = entry.statistics;
-      final int fileCount = math.max(0, statistics.processedFiles);
-      final int inputBytes = _safeInput(statistics);
-      final int savedBytes = _safeSaved(statistics);
-      final double ratio = _safeRatio(statistics);
-      final DateTime day = _localDay(entry.createdAt);
-      final int daysAgo = today.difference(day).inDays;
-      final String format = _formatFor(entry);
-      final String sourceType = _sourceTypeFor(entry);
-
-      imagesCompressed += fileCount;
-      lifetimeSaved += savedBytes;
-      ratioTotal += ratio;
-      totalDuration += statistics.duration;
-      if (fileCount > 1) batchSessionsCompleted++;
-      if (inputBytes > largestImageBytes) largestImageBytes = inputBytes;
-      if (savedBytes > largestSavingBytes) largestSavingBytes = savedBytes;
-      presets.update(
-        entry.preset.name,
-        (int value) => value + fileCount,
-        ifAbsent: () => fileCount,
-      );
-      formats.update(
-        format,
-        (int value) => value + fileCount,
-        ifAbsent: () => fileCount,
-      );
-      sourceTypes.update(
-        sourceType,
-        (int value) => value + fileCount,
-        ifAbsent: () => fileCount,
-      );
-
-      if (_sameDay(day, today)) todaySavings += savedBytes;
-      if (!day.isBefore(weekStart) && !day.isAfter(today)) {
-        weekSavings += savedBytes;
-      }
-      if (day.year == today.year &&
-          day.month == today.month &&
-          !day.isAfter(today)) {
-        monthSavings += savedBytes;
-      }
-      if (daysAgo >= 0 && daysAgo < 7) savedByDay[6 - daysAgo] += savedBytes;
-    }
-
-    final List<HistoryEntry> recentEntries = List<HistoryEntry>.of(entries)
-      ..sort(
-        (HistoryEntry a, HistoryEntry b) => b.createdAt.compareTo(a.createdAt),
-      );
-    return HistoryInsights(
-      imagesCompressed: imagesCompressed,
-      todaySavings: todaySavings,
-      weekSavings: weekSavings,
-      monthSavings: monthSavings,
-      lifetimeSaved: lifetimeSaved,
-      averageRatio: ratioTotal / entries.length,
-      averageProcessingTime: Duration(
-        microseconds: totalDuration.inMicroseconds ~/ entries.length,
-      ),
-      largestImageBytes: largestImageBytes,
-      largestSavingBytes: largestSavingBytes,
-      mostUsedPreset: _mostUsed(presets),
-      mostUsedFormat: _mostUsed(formats),
-      mostCommonImageType: _mostUsed(sourceTypes),
-      batchSessionsCompleted: batchSessionsCompleted,
-      savedByDay: savedByDay,
-      ratioBySession: recentEntries
-          .take(12)
-          .map((HistoryEntry entry) => _safeRatio(entry.statistics))
-          .toList(growable: false),
-    );
-  }
-
-  String _formatFor(HistoryEntry entry) {
-    final String name = entry.outputName.toLowerCase();
-    if (name.endsWith('.jpeg') || name.endsWith('.jpg')) return 'JPEG';
-    if (name.endsWith('.png')) return 'PNG';
-    if (name.endsWith('.webp')) return 'WebP';
-    return entry.preset.format.name.toUpperCase();
-  }
-
-  String _sourceTypeFor(HistoryEntry entry) {
-    final String name = entry.sourceName.toLowerCase();
-    if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'JPEG';
-    if (name.endsWith('.png')) return 'PNG';
-    if (name.endsWith('.webp')) return 'WebP';
-    return 'Other';
-  }
-
-  double _safeRatio(CompressionStatistics statistics) {
-    if (statistics.savingsRatio.isFinite && statistics.savingsRatio >= 0) {
-      return statistics.savingsRatio;
-    }
-    final int output = math.max(0, statistics.outputBytes);
-    return output == 0 ? 0 : math.max(0, statistics.inputBytes) / output;
-  }
-
-  int _safeInput(CompressionStatistics statistics) =>
-      math.max(0, statistics.inputBytes);
-
-  int _safeSaved(CompressionStatistics statistics) =>
-      math.max(0, statistics.savedBytes);
-
-  String? _mostUsed(Map<String, int> counts) {
-    if (counts.isEmpty) return null;
-    return counts.entries
-        .reduce(
-          (MapEntry<String, int> a, MapEntry<String, int> b) =>
-              a.value >= b.value ? a : b,
-        )
-        .key;
-  }
-
-  bool _sameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
   void _notify({required bool insightsChanged}) {
     if (_disposed) return;
     if (insightsChanged) {
@@ -597,3 +447,163 @@ class HistoryInsightsController extends ChangeNotifier {
 
   static String formatBytes(int bytes) => FileSizeFormatter.format(bytes);
 }
+
+/// Aggregates [entries] into [HistoryInsights] without touching controllers or
+/// notifiers, so the computation can run on a background isolate during the
+/// first History load instead of blocking the UI thread mid-transition.
+///
+/// Pure and sendable: [HistoryEntry] and [HistoryInsights] are plain data.
+HistoryInsights calculateHistoryInsights(Iterable<HistoryEntry> source) {
+  final List<HistoryEntry> entries = source.toList(growable: false);
+  if (entries.isEmpty) {
+    return const HistoryInsights(
+      imagesCompressed: 0,
+      todaySavings: 0,
+      weekSavings: 0,
+      monthSavings: 0,
+      lifetimeSaved: 0,
+      averageRatio: 0,
+      averageProcessingTime: Duration.zero,
+      largestImageBytes: 0,
+      largestSavingBytes: 0,
+      mostUsedPreset: null,
+      mostUsedFormat: null,
+      mostCommonImageType: null,
+      batchSessionsCompleted: 0,
+      savedByDay: <int>[0, 0, 0, 0, 0, 0, 0],
+      ratioBySession: <double>[],
+    );
+  }
+  final DateTime today = _localDay(DateTime.now());
+  final DateTime weekStart = today.subtract(const Duration(days: 6));
+  int imagesCompressed = 0;
+  int todaySavings = 0;
+  int weekSavings = 0;
+  int monthSavings = 0;
+  int lifetimeSaved = 0;
+  int largestImageBytes = 0;
+  int largestSavingBytes = 0;
+  int batchSessionsCompleted = 0;
+  double ratioTotal = 0;
+  Duration totalDuration = Duration.zero;
+  final Map<String, int> presets = <String, int>{};
+  final Map<String, int> formats = <String, int>{};
+  final Map<String, int> sourceTypes = <String, int>{};
+  final List<int> savedByDay = List<int>.filled(7, 0);
+
+  for (final HistoryEntry entry in entries) {
+    final CompressionStatistics statistics = entry.statistics;
+    final int fileCount = math.max(0, statistics.processedFiles);
+    final int inputBytes = _safeInput(statistics);
+    final int savedBytes = _safeSaved(statistics);
+    final double ratio = _safeRatio(statistics);
+    final DateTime day = _localDay(entry.createdAt);
+    final int daysAgo = today.difference(day).inDays;
+    final String format = _formatFor(entry);
+    final String sourceType = _sourceTypeFor(entry);
+
+    imagesCompressed += fileCount;
+    lifetimeSaved += savedBytes;
+    ratioTotal += ratio;
+    totalDuration += statistics.duration;
+    if (fileCount > 1) batchSessionsCompleted++;
+    if (inputBytes > largestImageBytes) largestImageBytes = inputBytes;
+    if (savedBytes > largestSavingBytes) largestSavingBytes = savedBytes;
+    presets.update(
+      entry.preset.name,
+      (int value) => value + fileCount,
+      ifAbsent: () => fileCount,
+    );
+    formats.update(
+      format,
+      (int value) => value + fileCount,
+      ifAbsent: () => fileCount,
+    );
+    sourceTypes.update(
+      sourceType,
+      (int value) => value + fileCount,
+      ifAbsent: () => fileCount,
+    );
+
+    if (_sameDay(day, today)) todaySavings += savedBytes;
+    if (!day.isBefore(weekStart) && !day.isAfter(today)) {
+      weekSavings += savedBytes;
+    }
+    if (day.year == today.year &&
+        day.month == today.month &&
+        !day.isAfter(today)) {
+      monthSavings += savedBytes;
+    }
+    if (daysAgo >= 0 && daysAgo < 7) savedByDay[6 - daysAgo] += savedBytes;
+  }
+
+  final List<HistoryEntry> recentEntries = List<HistoryEntry>.of(entries)
+    ..sort(
+      (HistoryEntry a, HistoryEntry b) => b.createdAt.compareTo(a.createdAt),
+    );
+  return HistoryInsights(
+    imagesCompressed: imagesCompressed,
+    todaySavings: todaySavings,
+    weekSavings: weekSavings,
+    monthSavings: monthSavings,
+    lifetimeSaved: lifetimeSaved,
+    averageRatio: ratioTotal / entries.length,
+    averageProcessingTime: Duration(
+      microseconds: totalDuration.inMicroseconds ~/ entries.length,
+    ),
+    largestImageBytes: largestImageBytes,
+    largestSavingBytes: largestSavingBytes,
+    mostUsedPreset: _mostUsed(presets),
+    mostUsedFormat: _mostUsed(formats),
+    mostCommonImageType: _mostUsed(sourceTypes),
+    batchSessionsCompleted: batchSessionsCompleted,
+    savedByDay: savedByDay,
+    ratioBySession: recentEntries
+        .take(12)
+        .map((HistoryEntry entry) => _safeRatio(entry.statistics))
+        .toList(growable: false),
+  );
+}
+
+String _formatFor(HistoryEntry entry) {
+  final String name = entry.outputName.toLowerCase();
+  if (name.endsWith('.jpeg') || name.endsWith('.jpg')) return 'JPEG';
+  if (name.endsWith('.png')) return 'PNG';
+  if (name.endsWith('.webp')) return 'WebP';
+  return entry.preset.format.name.toUpperCase();
+}
+
+String _sourceTypeFor(HistoryEntry entry) {
+  final String name = entry.sourceName.toLowerCase();
+  if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'JPEG';
+  if (name.endsWith('.png')) return 'PNG';
+  if (name.endsWith('.webp')) return 'WebP';
+  return 'Other';
+}
+
+double _safeRatio(CompressionStatistics statistics) {
+  if (statistics.savingsRatio.isFinite && statistics.savingsRatio >= 0) {
+    return statistics.savingsRatio;
+  }
+  final int output = math.max(0, statistics.outputBytes);
+  return output == 0 ? 0 : math.max(0, statistics.inputBytes) / output;
+}
+
+int _safeInput(CompressionStatistics statistics) =>
+    math.max(0, statistics.inputBytes);
+
+int _safeSaved(CompressionStatistics statistics) =>
+    math.max(0, statistics.savedBytes);
+
+String? _mostUsed(Map<String, int> counts) {
+  if (counts.isEmpty) return null;
+  return counts.entries
+      .reduce(
+        (MapEntry<String, int> a, MapEntry<String, int> b) =>
+            a.value >= b.value ? a : b,
+      )
+      .key;
+}
+
+bool _sameDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;

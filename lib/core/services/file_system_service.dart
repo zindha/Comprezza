@@ -112,9 +112,28 @@ final class LocalFileSystemService implements FileSystemService {
   final Set<String> _ownedRoots = <String>{};
   final Random _random = Random.secure();
   Future<void> _writeTail = Future<void>.value();
+  // App-private directories are stable for the process lifetime, so the
+  // first successful resolution is memoized. Without this, every history read
+  // re-created six directories and re-canonicalized their symlinks, adding
+  // filesystem churn right on the navigation path.
+  Future<Result<AppDirectories>>? _cachedDirectories;
 
   @override
-  Future<Result<AppDirectories>> directories() async {
+  Future<Result<AppDirectories>> directories() {
+    final Future<Result<AppDirectories>>? cached = _cachedDirectories;
+    if (cached != null) return cached;
+    final Future<Result<AppDirectories>> resolving = _resolveDirectories();
+    _cachedDirectories = resolving.then((Result<AppDirectories> result) {
+      if (result case Failure<AppDirectories>()) {
+        // Transient failures stay retryable; only successes are stable.
+        _cachedDirectories = null;
+      }
+      return result;
+    });
+    return _cachedDirectories!;
+  }
+
+  Future<Result<AppDirectories>> _resolveDirectories() async {
     try {
       final Directory temporaryRoot = await _pathProvider.temporaryDirectory();
       final Directory support = await _pathProvider

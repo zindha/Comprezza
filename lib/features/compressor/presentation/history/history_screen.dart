@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:isolate';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/errors/app_error.dart';
@@ -65,19 +68,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               for (final CompressionHistoryRecord record in records)
                 record.id: record,
             };
-        setState(() {
-          _recordsById = byId;
-          _controller = HistoryInsightsController(
-            entries: records.map(historyEntryFromRecord),
-            onDelete: _deleteEntry,
-            onRestore: _restoreEntry,
-            onShare: _shareEntry,
-            onCompressAgain: (HistoryEntry _) async {
-              widget.onOpenCompression?.call();
-            },
-          );
-          _loading = false;
-        });
+        // Mapping records to entries and aggregating insights is pure CPU
+        // work that would otherwise block the UI isolate right when the route
+        // transition is animating; run it on a background isolate instead.
+        unawaited(_applyRecords(records, byId));
       },
       onFailure: (AppError _) {
         setState(() {
@@ -86,6 +80,45 @@ class _HistoryScreenState extends State<HistoryScreen> {
         });
       },
     );
+  }
+
+  /// Maps and aggregates loaded records off the UI isolate, then swaps the
+  /// loaded state in. Records, entries, and insights are plain sendable data.
+  Future<void> _applyRecords(
+    List<CompressionHistoryRecord> records,
+    Map<String, CompressionHistoryRecord> byId,
+  ) async {
+    // With no records there is nothing to map, so skip the isolate
+    // round-trip entirely; real data is transformed on a background isolate.
+    final (
+      List<HistoryEntry> entries,
+      HistoryInsights insights,
+    ) = records.isEmpty
+        ? (
+            const <HistoryEntry>[],
+            calculateHistoryInsights(const <HistoryEntry>[]),
+          )
+        : await Isolate.run(() {
+            final List<HistoryEntry> mapped = records
+                .map(historyEntryFromRecord)
+                .toList(growable: false);
+            return (mapped, calculateHistoryInsights(mapped));
+          });
+    if (!mounted) return;
+    setState(() {
+      _recordsById = byId;
+      _controller = HistoryInsightsController(
+        entries: entries,
+        insights: insights,
+        onDelete: _deleteEntry,
+        onRestore: _restoreEntry,
+        onShare: _shareEntry,
+        onCompressAgain: (HistoryEntry _) async {
+          widget.onOpenCompression?.call();
+        },
+      );
+      _loading = false;
+    });
   }
 
   Future<void> _deleteEntry(HistoryEntry entry) async {
