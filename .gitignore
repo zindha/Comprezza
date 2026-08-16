@@ -1,0 +1,22 @@
+# Flutter/Dart generated output
+.dart_tool/
+.packages
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android local configuration and build output
+android/.gradle/
+android/local.properties
+android/app/build/
+android/key.properties
+android/**/*.jks
+android/**/*.keystore
+android/**/*.p12
+
+# IDE and OS files
+.idea/
+*.iml
+.vscode/
+.DS_Store

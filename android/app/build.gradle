@@ -1,0 +1,100 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { stream ->
+        keystoreProperties.load(stream)
+    }
+}
+
+def requiredSigningProperties = [
+    "keyAlias",
+    "keyPassword",
+    "storeFile",
+    "storePassword",
+]
+
+def releaseSigningIsConfigured = requiredSigningProperties.every { key ->
+    def value = keystoreProperties.getProperty(key)
+    value != null && !value.trim().isEmpty()
+} && rootProject.file(keystoreProperties.getProperty("storeFile")).isFile()
+
+gradle.taskGraph.whenReady { graph ->
+    def releaseTaskRequested = graph.allTasks.any { task ->
+        task.name.toLowerCase().contains("release")
+    }
+    if (releaseTaskRequested && !releaseSigningIsConfigured) {
+        throw new GradleException(
+            "Release signing is not configured. Provide android/key.properties and a protected upload keystore."
+        )
+    }
+}
+
+android {
+    namespace = "com.dzynova.comprezza"
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    defaultConfig {
+        applicationId = "com.dzynova.comprezza"
+        minSdk = 29
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
+
+    signingConfigs {
+        release {
+            if (releaseSigningIsConfigured) {
+                keyAlias = keystoreProperties["keyAlias"]
+                keyPassword = keystoreProperties["keyPassword"]
+                storeFile = rootProject.file(keystoreProperties["storeFile"])
+                storePassword = keystoreProperties["storePassword"]
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // Never silently use the debug key. The task-graph guard above
+            // fails any release task without protected signing material.
+            if (releaseSigningIsConfigured) {
+                signingConfig = signingConfigs.release
+            }
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}
+
+// Exposes the resolved Flutter/AGP target to CI without hard-coding a second
+// source of truth in the release pipeline.
+tasks.register("printTargetSdk") {
+    group = "verification"
+    description = "Print the resolved Android target SDK used by the app."
+    doLast {
+        println("COMPREZZA_TARGET_SDK=${android.defaultConfig.targetSdk}")
+    }
+}
