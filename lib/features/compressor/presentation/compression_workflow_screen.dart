@@ -692,11 +692,7 @@ class _AnalysisCard extends StatelessWidget {
           children: <Widget>[
             Row(
               children: <Widget>[
-                Icon(
-                  Icons.insights_rounded,
-                  size: 20,
-                  color: colors.primary,
-                ),
+                Icon(Icons.insights_rounded, size: 20, color: colors.primary),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(

@@ -82,10 +82,6 @@ class AppBrandMark extends StatelessWidget {
         ),
       ],
     ),
-    child: Icon(
-      Icons.compress_rounded,
-      size: size * .56,
-      color: Colors.white,
-    ),
+    child: Icon(Icons.compress_rounded, size: size * .56, color: Colors.white),
   );
 }
