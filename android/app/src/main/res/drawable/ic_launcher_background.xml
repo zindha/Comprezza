@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Comprezza adaptive-icon background layer.
+
+    Diagonal midnight-navy gradient sampled from the original launcher card
+    artwork (lightest at the top-left, darkest at the bottom-right), so the
+    adaptive icon keeps the same blue/cyan color language as the brand mark.
+    The launcher mask clips this layer, so it fills the whole 108dp canvas.
+-->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#121934" />
+    <gradient
+        android:angle="315"
+        android:startColor="#202846"
+        android:endColor="#071028" />
 </shape>
