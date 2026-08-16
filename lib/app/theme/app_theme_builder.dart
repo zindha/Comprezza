@@ -94,7 +94,6 @@ abstract final class AppThemeBuilder {
     }
     return const ColorScheme.light(
       primary: Color(0xFF2563EB),
-      onPrimary: Color(0xFFFFFFFF),
       primaryContainer: Color(0xFFD7E5FF),
       onPrimaryContainer: Color(0xFF00265C),
       secondary: Color(0xFF4A5C7A),

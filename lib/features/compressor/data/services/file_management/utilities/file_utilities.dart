@@ -103,7 +103,7 @@ final class LocalFileUtilities implements FileUtilities {
       final Result<FileMetadata> metadata = Result<FileMetadata>.success(
         await fileSystem.stat(file),
       );
-      return metadata.fold(
+      return await metadata.fold(
         onSuccess: (FileMetadata value) => Result<int>.success(value.size),
         onFailure: (AppError error) => Result<int>.failure(error),
       );
@@ -130,7 +130,7 @@ final class LocalFileUtilities implements FileUtilities {
           ),
         );
       }
-      return fileSystem.copyFromExternal(source, destination);
+      return await fileSystem.copyFromExternal(source, destination);
     } catch (error, stackTrace) {
       final exception = ErrorMapper.map(error, stackTrace);
       return Result<File>.failure(ResultErrorAdapter.fromException(exception));

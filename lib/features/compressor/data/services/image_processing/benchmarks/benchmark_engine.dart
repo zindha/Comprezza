@@ -27,7 +27,7 @@ final class LocalBenchmarkEngine implements BenchmarkEngine {
   ) async {
     try {
       final result = await timer.measure(name, operation);
-      return result.value.fold(
+      return await result.value.fold(
         onSuccess: (ProcessingOutput output) {
           final int input = inputBytes ?? 0;
           final ProcessingBenchmark benchmark = ProcessingBenchmark(
