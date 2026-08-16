@@ -30,11 +30,20 @@ class AppBrandMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ColorScheme colors = Theme.of(context).colorScheme;
+    // The bundled logo is a high-resolution asset (1181×1202). It is always
+    // rendered at small sizes here, so request a display-sized decode instead
+    // of decoding the full image (≈5.7MB of RGBA) for every mark instance
+    // (navigation rail, app bars, about).
+    final double dpr = MediaQuery.devicePixelRatioOf(context);
+    final int cacheWidth = (size * dpr).round().clamp(1, 4096).toInt();
+    final int cacheHeight = (size * dpr).round().clamp(1, 4096).toInt();
     final Widget glyph = Image.asset(
       AppAssets.logo,
       width: size,
       height: size,
       fit: BoxFit.contain,
+      cacheWidth: cacheWidth,
+      cacheHeight: cacheHeight,
       errorBuilder: (BuildContext context, Object error, StackTrace? stack) =>
           _fallbackGlyph(colors),
     );

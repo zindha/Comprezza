@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -15,6 +17,47 @@ import '../data/services/file_management/models/file_management_models.dart';
 import '../domain/entities/application_entities.dart';
 import 'design_system/design_system.dart';
 import 'history/history_entry_mapper.dart';
+
+/// Computes the dashboard impact summary from persisted records.
+///
+/// Top-level and pure so it can run on a background isolate: it maps records
+/// to presentation entries and aggregates the totals the dashboard renders.
+_DashboardSummary _aggregateDashboardSummary(
+  List<CompressionHistoryRecord> records,
+) {
+  final List<HistoryEntry> entries = records
+      .map(historyEntryFromRecord)
+      .toList(growable: false);
+  int imagesCompressed = 0;
+  int savedBytes = 0;
+  int todaySavedBytes = 0;
+  double ratioSum = 0;
+  final DateTime now = DateTime.now();
+  final DateTime dayStart = DateTime(now.year, now.month, now.day);
+  for (final HistoryEntry entry in entries) {
+    final CompressionStatistics stats = entry.statistics;
+    final int count = math.max(0, stats.processedFiles);
+    final int saved = math.max(0, stats.savedBytes);
+    imagesCompressed += count;
+    savedBytes += saved;
+    ratioSum += math.max(0, stats.savingsRatio);
+    if (entry.createdAt.isAfter(dayStart)) todaySavedBytes += saved;
+  }
+  final double averageRatio = entries.isEmpty ? 0 : ratioSum / entries.length;
+  final int averagePercent = averageRatio <= 0
+      ? 0
+      : (100 * (1 - 1 / averageRatio)).clamp(0, 99).round();
+  return _DashboardSummary(
+    imagesCompressed: imagesCompressed,
+    savedBytes: savedBytes,
+    todaySavedBytes: todaySavedBytes,
+    averagePercent: averagePercent,
+    recent: entries
+        .take(3)
+        .map((HistoryEntry entry) => entry.sourceName)
+        .toList(growable: false),
+  );
+}
 
 /// Aggregated impact numbers shown on the dashboard, derived from the same
 /// persisted history the Insights destination reads.
@@ -83,6 +126,14 @@ class _HomeDashboardState extends State<HomeDashboard> {
     _loadSummary();
   }
 
+  Future<void> _applySummary(List<CompressionHistoryRecord> records) async {
+    final _DashboardSummary summary = records.isEmpty
+        ? const _DashboardSummary()
+        : await Isolate.run(() => _aggregateDashboardSummary(records));
+    if (!mounted) return;
+    setState(() => _summary = summary);
+  }
+
   Future<void> _loadSummary() async {
     final HistoryStorage? storage = widget.history;
     if (storage == null) return;
@@ -91,42 +142,11 @@ class _HomeDashboardState extends State<HomeDashboard> {
     if (!mounted) return;
     result.fold(
       onSuccess: (List<CompressionHistoryRecord> records) {
-        final List<HistoryEntry> entries = records
-            .map(historyEntryFromRecord)
-            .toList(growable: false);
-        int imagesCompressed = 0;
-        int savedBytes = 0;
-        int todaySavedBytes = 0;
-        double ratioSum = 0;
-        final DateTime now = DateTime.now();
-        final DateTime dayStart = DateTime(now.year, now.month, now.day);
-        for (final HistoryEntry entry in entries) {
-          final CompressionStatistics stats = entry.statistics;
-          final int count = math.max(0, stats.processedFiles);
-          final int saved = math.max(0, stats.savedBytes);
-          imagesCompressed += count;
-          savedBytes += saved;
-          ratioSum += math.max(0, stats.savingsRatio);
-          if (entry.createdAt.isAfter(dayStart)) todaySavedBytes += saved;
-        }
-        final double averageRatio = entries.isEmpty
-            ? 0
-            : ratioSum / entries.length;
-        final int averagePercent = averageRatio <= 0
-            ? 0
-            : (100 * (1 - 1 / averageRatio)).clamp(0, 99).round();
-        setState(() {
-          _summary = _DashboardSummary(
-            imagesCompressed: imagesCompressed,
-            savedBytes: savedBytes,
-            todaySavedBytes: todaySavedBytes,
-            averagePercent: averagePercent,
-            recent: entries
-                .take(3)
-                .map((HistoryEntry entry) => entry.sourceName)
-                .toList(growable: false),
-          );
-        });
+        // Mapping records to entries and aggregating the impact numbers is
+        // pure CPU work. With an empty history there is nothing to compute, so
+        // skip the isolate round-trip; real data is aggregated on a background
+        // isolate so the first dashboard frame stays cheap.
+        unawaited(_applySummary(records));
       },
       onFailure: (AppError _) {
         // Stay on the first-run zero state rather than blocking the dashboard.

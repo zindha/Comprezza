@@ -422,7 +422,8 @@ class _SettingsContent extends StatelessWidget {
               min: 32,
               max: 1024,
               divisions: 31,
-              valueLabel: l10n.settingsMegabytesValue(p.maximumCacheSizeMb),
+              labelBuilder: (double value) =>
+                  l10n.settingsMegabytesValue(value.round()),
               onChanged: (double value) => controller.update(
                 p.copyWith(maximumCacheSizeMb: value.round()),
               ),
@@ -434,9 +435,8 @@ class _SettingsContent extends StatelessWidget {
               min: 50,
               max: 2000,
               divisions: 39,
-              valueLabel: l10n.settingsItemsValue(
-                p.compressionHistorySizeLimit,
-              ),
+              labelBuilder: (double value) =>
+                  l10n.settingsItemsValue(value.round()),
               onChanged: (double value) => controller.update(
                 p.copyWith(compressionHistorySizeLimit: value.round()),
               ),
@@ -538,9 +538,8 @@ class _SettingsContent extends StatelessWidget {
               min: .85,
               max: 1.5,
               divisions: 13,
-              valueLabel: l10n.settingsPercentValue(
-                (p.fontScale * 100).round(),
-              ),
+              labelBuilder: (double value) =>
+                  l10n.settingsPercentValue((value * 100).round()),
               onChanged: (double value) =>
                   controller.update(p.copyWith(fontScale: value)),
             ),
@@ -1437,13 +1436,20 @@ class _QualityRow extends StatelessWidget {
       min: 1,
       max: 100,
       divisions: 99,
-      valueLabel: l10n.settingsPercentValue(value),
+      labelBuilder: (double next) => l10n.settingsPercentValue(next.round()),
       onChanged: (double next) => onChanged(next.round()),
     );
   }
 }
 
-class _SliderRow extends StatelessWidget {
+/// A slider row that keeps its drag value local and commits to the controller
+/// only when the drag ends.
+///
+/// Calling the controller on every `onChanged` tick would notify the whole
+/// settings list and queue a persistence write per pixel of movement; holding
+/// the value locally keeps the label live while the thumb moves and reduces
+/// both rebuilds and disk writes to one per drag.
+class _SliderRow extends StatefulWidget {
   const _SliderRow({
     required this.icon,
     required this.title,
@@ -1451,7 +1457,7 @@ class _SliderRow extends StatelessWidget {
     required this.min,
     required this.max,
     required this.divisions,
-    required this.valueLabel,
+    required this.labelBuilder,
     required this.onChanged,
   });
 
@@ -1461,18 +1467,48 @@ class _SliderRow extends StatelessWidget {
   final double min;
   final double max;
   final int divisions;
-  final String valueLabel;
+  final String Function(double value) labelBuilder;
   final ValueChanged<double> onChanged;
+
+  @override
+  State<_SliderRow> createState() => _SliderRowState();
+}
+
+class _SliderRowState extends State<_SliderRow> {
+  /// The in-progress drag value, or null when not dragging. Falls back to the
+  /// persisted [widget.value] so external changes (reset, import) stay visible.
+  double? _dragValue;
+
+  double get _effectiveValue => _dragValue ?? widget.value;
+
+  @override
+  void didUpdateWidget(covariant _SliderRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A drag that committed elsewhere (or a reset/import) replaces the local
+    // value; otherwise a committed change would snap back on the next build.
+    if (oldWidget.value != widget.value) _dragValue = null;
+  }
+
+  void _handleChanged(double value) {
+    setState(() => _dragValue = value);
+  }
+
+  void _handleChangeEnd(double value) {
+    widget.onChanged(value);
+  }
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme colors = Theme.of(context).colorScheme;
+    final double value = _effectiveValue;
+    final double clamped = value.clamp(widget.min, widget.max).toDouble();
+    final String valueLabel = widget.labelBuilder(clamped);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         AppSettingsRow(
-          icon: icon,
-          title: title,
+          icon: widget.icon,
+          title: widget.title,
           trailing: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
@@ -1494,16 +1530,17 @@ class _SliderRow extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(left: 48),
           child: Semantics(
-            label: title,
+            label: widget.title,
             value: valueLabel,
             child: Slider(
-              value: value.clamp(min, max).toDouble(),
-              min: min,
-              max: max,
-              divisions: divisions,
+              value: clamped,
+              min: widget.min,
+              max: widget.max,
+              divisions: widget.divisions,
               label: valueLabel,
               semanticFormatterCallback: (_) => valueLabel,
-              onChanged: onChanged,
+              onChanged: _handleChanged,
+              onChangeEnd: _handleChangeEnd,
             ),
           ),
         ),
