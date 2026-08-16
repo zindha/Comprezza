@@ -35,9 +35,10 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          # Keep in sync with the SDK goldens were generated on; pixel-exact
-          # golden comparisons break when the engine version drifts.
-          flutter-version: '3.44.9'
+          # Keep in sync with the SDK the lockfile and goldens were generated
+          # on (dev toolchain is Flutter 3.47.0); pixel-exact golden
+          # comparisons break when the engine version drifts.
+          flutter-version: '3.47.0'
           cache: true
 
       - name: Install dependencies
@@ -80,7 +81,7 @@ jobs:
         with:
           channel: stable
           # Must match the quality job so release builds use the same SDK.
-          flutter-version: '3.44.9'
+          flutter-version: '3.47.0'
           cache: true
 
       - name: Install dependencies
@@ -189,7 +190,7 @@ jobs:
         with:
           channel: stable
           # Must match the quality job so APK builds use the same SDK.
-          flutter-version: '3.44.9'
+          flutter-version: '3.47.0'
           cache: true
 
       - name: Install dependencies
