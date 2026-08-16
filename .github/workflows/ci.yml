@@ -271,11 +271,10 @@ jobs:
           if [ -f build/app/outputs/flutter-apk/app-release.apk ]; then
             apks+=(build/app/outputs/flutter-apk/app-release.apk)
           fi
-          title="Comprezza v${version} — ${short_sha}"
           if [ "${#apks[@]}" -eq 1 ]; then
-            notes="Automated build from commit \`${short_sha}\`. Release APK omitted: signing secrets not configured yet."
+            notes="Comprezza v${version} (build ${short_sha}). Release APK omitted: signing secrets not configured yet."
           else
-            notes="Automated build from commit \`${short_sha}\`."
+            notes="Comprezza v${version} (build ${short_sha})."
           fi
           gh release delete latest --yes --cleanup-tag 2>/dev/null || true
-          gh release create latest "${apks[@]}" --title "$title" --notes "$notes" --latest
+          gh release create latest "${apks[@]}" --title "Latest" --notes "$notes" --latest
