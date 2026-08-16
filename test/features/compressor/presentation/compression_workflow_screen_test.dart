@@ -42,7 +42,7 @@ void main() {
     expect(find.text('Compress your image'), findsOneWidget);
     expect(find.text('Choose from gallery'), findsOneWidget);
     expect(find.text('Use camera'), findsOneWidget);
-    expect(find.text('Batch compress'), findsOneWidget);
+    expect(find.text('Batch compress multiple photos'), findsOneWidget);
     // The step indicator announces the current workflow step accessibly.
     expect(
       find.byWidgetPredicate(

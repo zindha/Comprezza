@@ -228,15 +228,8 @@ class _SettingsContent extends StatelessWidget {
           subtitle: l10n.settingsGeneralSubtitle,
           initiallyExpanded: true,
           childrenBuilder: () => <Widget>[
-            _ValueRow<SettingsTheme>(
-              icon: Icons.palette_outlined,
-              title: l10n.settingsTheme,
-              value: p.theme,
-              values: SettingsTheme.values,
-              label: _themeLabel,
-              onChanged: (SettingsTheme value) =>
-                  controller.update(p.copyWith(theme: value)),
-            ),
+            // Theme is intentionally not exposed here: Comprezza's identity is
+            // the fixed brand palette, so there is no accent/theme picker.
             _ValueRow<SettingsResizeMode>(
               icon: Icons.aspect_ratio_rounded,
               title: l10n.settingsResizeMode,
@@ -986,13 +979,6 @@ class _SettingsContent extends StatelessWidget {
     );
   }
 
-  String _themeLabel(SettingsTheme value, AppLocalizations l10n) =>
-      switch (value) {
-        SettingsTheme.system => l10n.settingsSystemTheme,
-        SettingsTheme.light => l10n.settingsLightTheme,
-        SettingsTheme.dark => l10n.settingsDarkTheme,
-      };
-
   String _resizeLabel(SettingsResizeMode value, AppLocalizations l10n) =>
       switch (value) {
         SettingsResizeMode.original => l10n.settingsOriginalResize,
@@ -1039,7 +1025,8 @@ class _SettingsContent extends StatelessWidget {
       };
 }
 
-/// Compact, card-free hero that leads with the personalization promise.
+/// Compact, card-free brand header: mark, name, one quiet line — then the
+/// sections start immediately. Nothing here pretends to be a setting.
 class _SettingsHero extends StatelessWidget {
   const _SettingsHero();
 
@@ -1053,43 +1040,33 @@ class _SettingsHero extends StatelessWidget {
       // so screen readers announce the overview label on its own.
       explicitChildNodes: true,
       label: l10n.settingsHeroSemantic,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: colors.surfaceContainerLow,
-          borderRadius: AppRadii.large,
-          border: Border.all(
-            color: colors.outlineVariant.withValues(alpha: .6),
-          ),
-        ),
-        child: Row(
-          children: <Widget>[
-            const AppBrandMark(size: 52),
-            const SizedBox(width: AppDimensions.spacingMd),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    l10n.settingsHeroTitle,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -.3,
-                    ),
+      child: Row(
+        children: <Widget>[
+          const AppBrandMark(size: 40),
+          const SizedBox(width: AppDimensions.spacingMd),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  l10n.settingsHeroTitle,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -.2,
                   ),
-                  const SizedBox(height: AppDimensions.spacingXs),
-                  Text(
-                    l10n.settingsHeroSubtitle,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colors.onSurfaceVariant,
-                      height: 1.4,
-                    ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  l10n.settingsHeroSubtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                    height: 1.35,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1298,7 +1275,7 @@ class _SettingsSectionState extends State<_SettingsSection> {
               widget.title,
               style: Theme.of(
                 context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
             subtitle: Text(
               widget.subtitle,

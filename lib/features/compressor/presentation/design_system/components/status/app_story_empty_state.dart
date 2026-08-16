@@ -18,6 +18,7 @@ class AppStoryEmptyState extends StatelessWidget {
     this.kicker,
     this.icon = Icons.compress_rounded,
     this.glyphSize = 104,
+    this.compact = false,
     super.key,
   });
 
@@ -42,10 +43,16 @@ class AppStoryEmptyState extends StatelessWidget {
   /// Diameter of the layered glyph stack.
   final double glyphSize;
 
+  /// Tighter rhythm for secondary empty states so they read as a quiet note
+  /// rather than a full-page moment.
+  final bool compact;
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme colors = Theme.of(context).colorScheme;
     final ThemeData theme = Theme.of(context);
+    final double glyphGap = compact ? AppSpacing.sm : AppSpacing.lg;
+    final double actionGap = compact ? AppSpacing.md : AppSpacing.lg;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -53,7 +60,7 @@ class AppStoryEmptyState extends StatelessWidget {
         Center(
           child: _LayeredGlyph(icon: icon, size: glyphSize),
         ),
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: glyphGap),
         if (kicker != null) ...<Widget>[
           Center(
             child: Text(
@@ -69,7 +76,7 @@ class AppStoryEmptyState extends StatelessWidget {
           title,
           textAlign: TextAlign.center,
           style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
             letterSpacing: -.3,
             height: 1.25,
           ),
@@ -87,7 +94,7 @@ class AppStoryEmptyState extends StatelessWidget {
           ),
         ),
         if (action != null) ...<Widget>[
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: actionGap),
           Center(child: action),
         ],
         if (secondaryAction != null) ...<Widget>[

@@ -602,48 +602,49 @@ class _SelectionCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            LayoutBuilder(
-              builder: (BuildContext context, BoxConstraints constraints) {
-                final Widget camera = AppPressable(
-                  child: OutlinedButton.icon(
-                    onPressed: onCamera,
-                    icon: const Icon(Icons.camera_alt_outlined),
-                    label: Text(l10n.useCamera),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: onBand,
-                      side: BorderSide(color: onBand.withValues(alpha: .35)),
+            AppPressable(
+              child: OutlinedButton.icon(
+                onPressed: onCamera,
+                icon: const Icon(Icons.camera_alt_outlined),
+                label: Text(l10n.useCamera),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: onBand,
+                  side: BorderSide(color: onBand.withValues(alpha: .35)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Batch is a quiet shortcut, not a third primary action: one clear
+            // primary (gallery), one secondary (camera), then this text link.
+            Center(
+              child: AppPressable(
+                child: TextButton(
+                  onPressed: onBatch,
+                  style: TextButton.styleFrom(
+                    foregroundColor: onBand.withValues(alpha: .82),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xs,
                     ),
                   ),
-                );
-                final Widget batch = AppPressable(
-                  child: OutlinedButton.icon(
-                    onPressed: onBatch,
-                    icon: const Icon(Icons.collections_outlined),
-                    label: Text(l10n.batchCompress),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: onBand,
-                      side: BorderSide(color: onBand.withValues(alpha: .35)),
-                    ),
-                  ),
-                );
-                if (constraints.maxWidth < 460) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      camera,
-                      const SizedBox(height: 10),
-                      batch,
+                      const Icon(Icons.collections_outlined, size: 18),
+                      const SizedBox(width: AppSpacing.xs),
+                      Flexible(
+                        child: Text(
+                          l10n.batchCompressMany,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.arrow_forward_rounded, size: 16),
                     ],
-                  );
-                }
-                return Row(
-                  children: <Widget>[
-                    Expanded(child: camera),
-                    const SizedBox(width: 10),
-                    Expanded(child: batch),
-                  ],
-                );
-              },
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             Text(

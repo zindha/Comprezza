@@ -90,7 +90,8 @@ class AppLocalizationsHi extends AppLocalizations {
   String get seeAll => 'सब देखें';
 
   @override
-  String get heroWelcome => 'ज़रूरी चीज़ों के लिए जगह बनाएँ।';
+  String get heroWelcome =>
+      'अपनी तस्वीरें अपने डिवाइस पर निजी तौर पर कंप्रेस करें।';
 
   @override
   String get privateLocalWorkflow =>
@@ -111,11 +112,11 @@ class AppLocalizationsHi extends AppLocalizations {
   String get savedSoFar => 'अब तक बचाया';
 
   @override
-  String get recentFilesEmptyTitle => 'आपकी हाल की फ़ाइलें यहाँ दिखाई देंगी';
+  String get recentFilesEmptyTitle => 'अभी तक कोई कंप्रेशन नहीं';
 
   @override
   String get recentFilesEmptyMessage =>
-      'एक फ़ोटो से शुरुआत करें और हम आपके नवीनतम परिणाम पास रखेंगे।';
+      'शुरू करने के लिए फ़ोटो चुनें — आपके नए परिणाम यहाँ दिखेंगे।';
 
   @override
   String get learnHowItWorks => 'जानें यह कैसे काम करता है';
@@ -131,6 +132,12 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get averageCompression => 'औसत कंप्रेशन';
+
+  @override
+  String get spaceSaved => 'बचाई गई जगह';
+
+  @override
+  String get averageReduction => 'औसत कमी';
 
   @override
   String get smartTip => 'स्मार्ट टिप';
@@ -149,6 +156,9 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get batchCompressSubtitle => 'एक साथ कई फ़ोटो';
+
+  @override
+  String get batchCompressMany => 'एक साथ कई फ़ोटो कंप्रेस करें';
 
   @override
   String get batchTitle => 'फ़ोटो का बैच कंप्रेस करें';
@@ -1274,11 +1284,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get settingsHeroSemantic => 'सेटिंग्स निजीकरण अवलोकन';
 
   @override
-  String get settingsHeroTitle => 'Comprezza को अपना बनाएँ';
+  String get settingsHeroTitle => 'Comprezza';
 
   @override
-  String get settingsHeroSubtitle =>
-      'निजता और नियंत्रण छोड़े बिना वर्कफ़्लो को निजी बनाएँ।';
+  String get settingsHeroSubtitle => 'निजी फोटो कंप्रेशन।';
 
   @override
   String get settingsRecommendations => 'आपके लिए सुझाव';

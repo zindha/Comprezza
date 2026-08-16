@@ -59,10 +59,13 @@ void main() {
     );
 
     expect(find.text('Comprezza'), findsNWidgets(2));
-    expect(find.text('Compress. Convert. Optimize.'), findsOneWidget);
+    expect(
+      find.text('Compress photos privately on your device.'),
+      findsOneWidget,
+    );
     expect(find.text('Quick actions'), findsOneWidget);
     expect(find.text('Storage savings'), findsOneWidget);
-    expect(find.text('Your recent files will appear here'), findsOneWidget);
+    expect(find.text('No recent compressions yet'), findsOneWidget);
     expect(find.text('Images compressed'), findsOneWidget);
     expect(find.text('SMART TIP'), findsOneWidget);
 

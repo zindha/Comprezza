@@ -371,7 +371,7 @@ class _HistoryHeader extends StatelessWidget {
         Text(
           l10n.historyTitle,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
             letterSpacing: -.3,
           ),
         ),
@@ -419,40 +419,57 @@ class _HistoryHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        Wrap(
-          spacing: AppSpacing.xs,
-          runSpacing: AppSpacing.xs,
-          children: <Widget>[
-            _FilterMenu<HistoryDateFilter>(
-              label: l10n.historyDate,
-              value: controller.dateFilter,
-              values: HistoryDateFilter.values,
-              text: (HistoryDateFilter value) => _dateLabel(l10n, value),
-              onChanged: controller.setDateFilter,
-            ),
-            _FilterMenu<HistoryFormatFilter>(
-              label: l10n.historyFormat,
-              value: controller.formatFilter,
-              values: HistoryFormatFilter.values,
-              text: (HistoryFormatFilter value) =>
-                  _formatFilterLabel(l10n, value),
-              onChanged: controller.setFormatFilter,
-            ),
-            _FilterMenu<HistoryRatioFilter>(
-              label: l10n.historyRatio,
-              value: controller.ratioFilter,
-              values: HistoryRatioFilter.values,
-              text: (HistoryRatioFilter value) => _ratioLabel(l10n, value),
-              onChanged: controller.setRatioFilter,
-            ),
-            _SortMenu(controller: controller),
-            if (controller.hasActiveFilters)
-              TextButton.icon(
-                onPressed: controller.clearFilters,
-                icon: const Icon(Icons.filter_alt_off_outlined),
-                label: Text(l10n.historyClearFilters),
+        // One compact horizontal filter row: each control is a quiet chip that
+        // opens a bottom sheet, so filters never stack into vertical space.
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: <Widget>[
+              _FilterChip<HistoryDateFilter>(
+                label: l10n.historyDate,
+                value: controller.dateFilter,
+                options: HistoryDateFilter.values,
+                optionLabel: (HistoryDateFilter value) =>
+                    _dateLabel(l10n, value),
+                onChanged: controller.setDateFilter,
               ),
-          ],
+              const SizedBox(width: AppSpacing.xs),
+              _FilterChip<HistoryFormatFilter>(
+                label: l10n.historyFormat,
+                value: controller.formatFilter,
+                options: HistoryFormatFilter.values,
+                optionLabel: (HistoryFormatFilter value) =>
+                    _formatFilterLabel(l10n, value),
+                onChanged: controller.setFormatFilter,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              _FilterChip<HistoryRatioFilter>(
+                label: l10n.historyRatio,
+                value: controller.ratioFilter,
+                options: HistoryRatioFilter.values,
+                optionLabel: (HistoryRatioFilter value) =>
+                    _ratioLabel(l10n, value),
+                onChanged: controller.setRatioFilter,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              _FilterChip<HistorySortOrder>(
+                label: l10n.historySort,
+                value: controller.sortOrder,
+                options: HistorySortOrder.values,
+                optionLabel: (HistorySortOrder value) =>
+                    _sortLabel(l10n, value),
+                onChanged: controller.setSortOrder,
+              ),
+              if (controller.hasActiveFilters) ...<Widget>[
+                const SizedBox(width: AppSpacing.xs),
+                TextButton.icon(
+                  onPressed: controller.clearFilters,
+                  icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
+                  label: Text(l10n.historyClearFilters),
+                ),
+              ],
+            ],
+          ),
         ),
         if (controller.availablePresets.isNotEmpty) ...<Widget>[
           const SizedBox(height: AppSpacing.sm),
@@ -514,116 +531,8 @@ class _HistoryHeader extends StatelessWidget {
         HistoryRatioFilter.twoToFour => l10n.historyRatioTwoToFour,
         HistoryRatioFilter.overFour => l10n.historyRatioOverFour,
       };
-}
 
-class _FilterMenu<T> extends StatelessWidget {
-  const _FilterMenu({
-    required this.label,
-    required this.value,
-    required this.values,
-    required this.text,
-    required this.onChanged,
-  });
-
-  final String label;
-  final T value;
-  final List<T> values;
-  final String Function(T value) text;
-  final ValueChanged<T> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme colors = Theme.of(context).colorScheme;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 220),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: colors.surfaceContainerHighest.withValues(alpha: .45),
-          borderRadius: AppRadii.pillRadius,
-          border: Border.all(
-            color: colors.outlineVariant.withValues(alpha: .6),
-          ),
-        ),
-        child: DropdownButton<T>(
-          isExpanded: true,
-          isDense: true,
-          value: value,
-          underline: const SizedBox.shrink(),
-          onChanged: (T? next) {
-            if (next != null) onChanged(next);
-          },
-          selectedItemBuilder: (BuildContext context) => values
-              .map(
-                (T item) => Text(
-                  '$label: ${text(item)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              )
-              .toList(growable: false),
-          items: values
-              .map(
-                (T item) =>
-                    DropdownMenuItem<T>(value: item, child: Text(text(item))),
-              )
-              .toList(growable: false),
-        ),
-      ),
-    );
-  }
-}
-
-class _SortMenu extends StatelessWidget {
-  const _SortMenu({required this.controller});
-  final HistoryInsightsController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final AppLocalizations l10n = AppLocalizations.of(context);
-    final ColorScheme colors = Theme.of(context).colorScheme;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 220),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: colors.surfaceContainerHighest.withValues(alpha: .45),
-          borderRadius: AppRadii.pillRadius,
-          border: Border.all(
-            color: colors.outlineVariant.withValues(alpha: .6),
-          ),
-        ),
-        child: DropdownButton<HistorySortOrder>(
-          isExpanded: true,
-          isDense: true,
-          value: controller.sortOrder,
-          underline: const SizedBox.shrink(),
-          selectedItemBuilder: (BuildContext context) => HistorySortOrder.values
-              .map(
-                (HistorySortOrder value) => Text(
-                  '${l10n.historySort}: ${_label(l10n, value)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              )
-              .toList(growable: false),
-          onChanged: (HistorySortOrder? value) {
-            if (value != null) controller.setSortOrder(value);
-          },
-          items: HistorySortOrder.values
-              .map(
-                (HistorySortOrder value) => DropdownMenuItem(
-                  value: value,
-                  child: Text(_label(l10n, value)),
-                ),
-              )
-              .toList(growable: false),
-        ),
-      ),
-    );
-  }
-
-  String _label(AppLocalizations l10n, HistorySortOrder value) =>
+  String _sortLabel(AppLocalizations l10n, HistorySortOrder value) =>
       switch (value) {
         HistorySortOrder.newest => l10n.historyNewest,
         HistorySortOrder.oldest => l10n.historyOldest,
@@ -632,6 +541,126 @@ class _SortMenu extends StatelessWidget {
         HistorySortOrder.az => l10n.historyAz,
         HistorySortOrder.za => l10n.historyZa,
       };
+}
+
+/// A compact filter control: `Label: value` in a quiet pill that opens a
+/// bottom sheet with the available options. Keeps the filter row to a single
+/// horizontal line instead of stacked dropdowns.
+class _FilterChip<T> extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.optionLabel,
+    required this.onChanged,
+  });
+
+  final String label;
+  final T value;
+  final List<T> options;
+  final String Function(T value) optionLabel;
+  final ValueChanged<T> onChanged;
+
+  Future<void> _openSheet(BuildContext context) async {
+    final ColorScheme colors = Theme.of(context).colorScheme;
+    final T? selected = await showModalBottomSheet<T>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                0,
+                AppSpacing.lg,
+                AppSpacing.xs,
+              ),
+              child: Text(
+                label,
+                style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: <Widget>[
+                  for (final T option in options)
+                    ListTile(
+                      title: Text(optionLabel(option)),
+                      trailing: option == value
+                          ? Icon(
+                              Icons.check_rounded,
+                              color: colors.primary,
+                            )
+                          : null,
+                      onTap: () => Navigator.of(sheetContext).pop(option),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+          ],
+        ),
+      ),
+    );
+    if (selected != null) onChanged(selected);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colors = Theme.of(context).colorScheme;
+    final ThemeData theme = Theme.of(context);
+    return Material(
+      color: colors.surfaceContainerHighest.withValues(alpha: .45),
+      shape: StadiumBorder(
+        side: BorderSide(color: colors.outlineVariant.withValues(alpha: .6)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _openSheet(context),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text.rich(
+                TextSpan(
+                  text: '$label: ',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  children: <TextSpan>[
+                    TextSpan(
+                      text: optionLabel(value),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: colors.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.expand_more_rounded,
+                size: 16,
+                color: colors.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _HistoryCard extends StatelessWidget {
@@ -824,7 +853,7 @@ class _HistoryDetails extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(
                   context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
             const SizedBox(width: AppSpacing.xs),
@@ -906,6 +935,8 @@ class _HistoryEmptyState extends StatelessWidget {
       message: filtered
           ? l10n.historyNoResultsMessage
           : l10n.historyEmptyMessage,
+      glyphSize: 72,
+      compact: true,
       action: filtered
           ? OutlinedButton(
               onPressed: onClear,
@@ -939,7 +970,7 @@ class _InsightsTab extends StatelessWidget {
           slivers: <Widget>[
             SliverPadding(
               padding: EdgeInsets.fromLTRB(horizontal, 20, horizontal, 0),
-              sliver: SliverToBoxAdapter(child: _InsightsHeader(data: data)),
+              sliver: const SliverToBoxAdapter(child: _InsightsHeader()),
             ),
             SliverPadding(
               padding: EdgeInsets.fromLTRB(
@@ -974,31 +1005,6 @@ class _InsightsTab extends StatelessWidget {
                 horizontal,
                 AppSpacing.sm,
                 horizontal,
-                0,
-              ),
-              sliver: SliverToBoxAdapter(
-                child: _ChartCard(
-                  title: l10n.historyRatioTrend,
-                  subtitle: l10n.historyRatioTrendSubtitle,
-                  values: data.ratioBySession,
-                  formatValue: (double value) => '${value.toStringAsFixed(1)}×',
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: EdgeInsets.fromLTRB(
-                horizontal,
-                AppSpacing.sm,
-                horizontal,
-                0,
-              ),
-              sliver: SliverToBoxAdapter(child: _InsightsFacts(data: data)),
-            ),
-            SliverPadding(
-              padding: EdgeInsets.fromLTRB(
-                horizontal,
-                AppSpacing.sm,
-                horizontal,
                 40,
               ),
               sliver: SliverToBoxAdapter(
@@ -1012,107 +1018,34 @@ class _InsightsTab extends StatelessWidget {
   }
 }
 
+/// Insights opens with a plain section header — the same voice as History —
+/// so the tab reads as one product experience instead of a dashboard splash.
 class _InsightsHeader extends StatelessWidget {
-  const _InsightsHeader({required this.data});
-  final HistoryInsights data;
-
-  static double _lifetimeProgress(HistoryInsights data) =>
-      (data.lifetimeSaved / (1024 * 1024 * 1024)).clamp(0, 1).toDouble();
+  const _InsightsHeader();
 
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final ColorScheme colors = Theme.of(context).colorScheme;
-    final bool reduceMotion = MediaQuery.disableAnimationsOf(context);
-    return _Surface(
-      radius: AppRadii.lg,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  l10n.appName.toUpperCase(),
-                  style: AppTypography.eyebrow(
-                    context,
-                  ).copyWith(color: colors.primary),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  l10n.insightsTitle,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -.3,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  l10n.insightsSubtitle,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colors.onSurfaceVariant,
-                    height: 1.45,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: <Widget>[
-                    // The number scales down to fit when the header column is
-                    // tight (narrow screens, large text scale) instead of
-                    // overflowing; the caption wraps below it.
-                    Flexible(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          FileSizeFormatter.format(data.lifetimeSaved),
-                          style: AppTypography.metric(
-                            context,
-                          ).copyWith(fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Flexible(
-                      child: Text(
-                        l10n.historyLifetimeSaved,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colors.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          l10n.insightsTitle,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: -.3,
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Semantics(
-            label:
-                '${l10n.historyStorageSaved} ${FileSizeFormatter.format(data.lifetimeSaved)}',
-            child: TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 0, end: _lifetimeProgress(data)),
-              duration: reduceMotion ? Duration.zero : AppDurations.expressive,
-              curve: AppAnimations.emphasizedCurve,
-              builder: (BuildContext context, double value, Widget? child) =>
-                  AppRingProgress(
-                    size: 84,
-                    strokeWidth: 7,
-                    progress: value,
-                    child: Icon(
-                      Icons.savings_rounded,
-                      color: colors.primary,
-                      size: 30,
-                    ),
-                  ),
-            ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          l10n.insightsSubtitle,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: colors.onSurfaceVariant,
+            height: 1.4,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1124,47 +1057,36 @@ class _SummaryGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
+    // Average reduction is a percent of the original size, not a ratio — and
+    // it stays a quiet dash until there is meaningful data to report.
+    final double averageRatio = data.averageRatio;
+    final int reductionPercent = averageRatio > 1
+        ? (100 * (1 - 1 / averageRatio)).round()
+        : 0;
+    final String reductionValue =
+        reductionPercent > 0 ? '$reductionPercent%' : '—';
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final int columns = constraints.maxWidth >= 1000
-            ? 4
-            : constraints.maxWidth >= 560
-            ? 3
-            : 2;
+        final int columns = constraints.maxWidth >= 560 ? 3 : 1;
         final double itemWidth =
             ((constraints.maxWidth - AppSpacing.sm * (columns - 1)) / columns)
                 .clamp(0, constraints.maxWidth)
                 .toDouble();
         final List<Widget> tiles = <Widget>[
           _SummaryTile(
+            label: l10n.spaceSaved,
+            value: FileSizeFormatter.format(data.lifetimeSaved),
+            icon: Icons.savings_outlined,
+          ),
+          _SummaryTile(
             label: l10n.imagesCompressed,
             value: '${data.imagesCompressed}',
             icon: Icons.photo_library_outlined,
           ),
           _SummaryTile(
-            label: l10n.todaysSavings,
-            value: FileSizeFormatter.format(data.todaySavings),
-            icon: Icons.today_outlined,
-          ),
-          _SummaryTile(
-            label: l10n.historyThisWeek,
-            value: FileSizeFormatter.format(data.weekSavings),
-            icon: Icons.date_range_outlined,
-          ),
-          _SummaryTile(
-            label: l10n.historyLifetimeSaved,
-            value: FileSizeFormatter.format(data.lifetimeSaved),
-            icon: Icons.savings_outlined,
-          ),
-          _SummaryTile(
-            label: l10n.averageCompression,
-            value: '${data.averageRatio.toStringAsFixed(1)}×',
+            label: l10n.averageReduction,
+            value: reductionValue,
             icon: Icons.compress_outlined,
-          ),
-          _SummaryTile(
-            label: l10n.historyBatchSessions,
-            value: '${data.batchSessionsCompleted}',
-            icon: Icons.collections_outlined,
           ),
         ];
         return Wrap(
@@ -1229,7 +1151,7 @@ class _ChartCard extends StatelessWidget {
             title,
             style: Theme.of(
               context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 3),
           Text(
@@ -1347,148 +1269,6 @@ class _TrendPainter extends CustomPainter {
   @override
   bool shouldRepaint(_TrendPainter oldDelegate) =>
       !listEquals(oldDelegate.values, values) || oldDelegate.color != color;
-}
-
-class _InsightsFacts extends StatelessWidget {
-  const _InsightsFacts({required this.data});
-  final HistoryInsights data;
-
-  @override
-  Widget build(BuildContext context) {
-    final AppLocalizations l10n = AppLocalizations.of(context);
-    return _Surface(
-      radius: AppRadii.lg,
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final int columns = constraints.maxWidth >= 560 ? 3 : 2;
-          final double itemWidth =
-              (constraints.maxWidth - AppSpacing.sm * (columns - 1)) / columns;
-          final List<_FactData> facts = <_FactData>[
-            _FactData(
-              icon: Icons.photo_size_select_large_rounded,
-              label: l10n.historyLargestImage,
-              value: FileSizeFormatter.format(data.largestImageBytes),
-            ),
-            _FactData(
-              icon: Icons.savings_outlined,
-              label: l10n.historyLargestSaving,
-              value: FileSizeFormatter.format(data.largestSavingBytes),
-            ),
-            _FactData(
-              icon: Icons.timer_outlined,
-              label: l10n.historyAverageTime,
-              value: _duration(data.averageProcessingTime),
-            ),
-            _FactData(
-              icon: Icons.bookmark_outline_rounded,
-              label: l10n.historyMostUsedPreset,
-              value: data.mostUsedPreset ?? l10n.notAvailable,
-            ),
-            _FactData(
-              icon: Icons.insert_drive_file_outlined,
-              label: l10n.historyMostUsedFormat,
-              value: data.mostUsedFormat ?? l10n.notAvailable,
-            ),
-            _FactData(
-              icon: Icons.calendar_month_outlined,
-              label: l10n.thisMonth,
-              value: FileSizeFormatter.format(data.monthSavings),
-            ),
-            _FactData(
-              icon: Icons.category_outlined,
-              label: l10n.historyImageType,
-              value: data.mostCommonImageType ?? l10n.notAvailable,
-            ),
-          ];
-          return Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: facts
-                .map(
-                  (_FactData fact) => SizedBox(
-                    width: itemWidth,
-                    child: _FactTile(
-                      icon: fact.icon,
-                      label: fact.label,
-                      value: fact.value,
-                    ),
-                  ),
-                )
-                .toList(growable: false),
-          );
-        },
-      ),
-    );
-  }
-
-  String _duration(Duration value) => value.inSeconds < 60
-      ? '${value.inSeconds}s'
-      : '${value.inMinutes}m ${value.inSeconds.remainder(60)}s';
-}
-
-class _FactData {
-  const _FactData({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-  final IconData icon;
-  final String label;
-  final String value;
-}
-
-class _FactTile extends StatelessWidget {
-  const _FactTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme colors = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: colors.surfaceContainerHighest.withValues(alpha: .5),
-        borderRadius: BorderRadius.circular(AppRadii.sm + 2),
-        border: Border.all(color: colors.outlineVariant.withValues(alpha: .45)),
-      ),
-      child: Row(
-        children: <Widget>[
-          Icon(icon, size: AppIconSizes.sm, color: colors.primary),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.metricSmall(
-                    context,
-                  ).copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colors.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _Achievements extends StatelessWidget {

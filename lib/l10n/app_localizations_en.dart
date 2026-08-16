@@ -92,7 +92,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get seeAll => 'See all';
 
   @override
-  String get heroWelcome => 'Make room for what matters.';
+  String get heroWelcome => 'Compress photos privately on your device.';
 
   @override
   String get privateLocalWorkflow =>
@@ -113,11 +113,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get savedSoFar => 'saved so far';
 
   @override
-  String get recentFilesEmptyTitle => 'Your recent files will appear here';
+  String get recentFilesEmptyTitle => 'No recent compressions yet';
 
   @override
   String get recentFilesEmptyMessage =>
-      'Start with a photo and we’ll keep your latest results close at hand.';
+      'Choose photos to get started — your latest results will appear here.';
 
   @override
   String get learnHowItWorks => 'Learn how it works';
@@ -133,6 +133,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get averageCompression => 'Average compression';
+
+  @override
+  String get spaceSaved => 'Space saved';
+
+  @override
+  String get averageReduction => 'Average reduction';
 
   @override
   String get smartTip => 'SMART TIP';
@@ -151,6 +157,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get batchCompressSubtitle => 'Many photos at once';
+
+  @override
+  String get batchCompressMany => 'Batch compress multiple photos';
 
   @override
   String get batchTitle => 'Compress a batch';
@@ -1276,11 +1285,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsHeroSemantic => 'Settings personalization overview';
 
   @override
-  String get settingsHeroTitle => 'Make Comprezza yours';
+  String get settingsHeroTitle => 'Comprezza';
 
   @override
-  String get settingsHeroSubtitle =>
-      'Personalize the workflow without giving up privacy or control.';
+  String get settingsHeroSubtitle => 'Private photo compression.';
 
   @override
   String get settingsRecommendations => 'Recommended for you';

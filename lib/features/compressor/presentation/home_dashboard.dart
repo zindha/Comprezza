@@ -270,7 +270,6 @@ class _Hero extends StatelessWidget {
         ? colors.surfaceContainerHigh
         : AppBrandColors.ink;
     final Color onBand = isDark ? colors.onSurface : Colors.white;
-    final Color bandMuted = onBand.withValues(alpha: .72);
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0, end: 1),
       duration: MediaQuery.disableAnimationsOf(context)
@@ -294,7 +293,7 @@ class _Hero extends StatelessWidget {
             final Widget copy = Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.lg,
-                AppSpacing.lg,
+                AppSpacing.md,
                 AppSpacing.lg,
                 AppSpacing.lg,
               ),
@@ -322,7 +321,7 @@ class _Hero extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
                     l10n.heroWelcome,
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
@@ -330,14 +329,6 @@ class _Hero extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                       letterSpacing: -.6,
                       height: 1.14,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    l10n.appTagline,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: bandMuted,
-                      height: 1.45,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -470,8 +461,8 @@ class _QuickActionTile extends StatelessWidget {
                       title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: prominent
-                            ? FontWeight.w800
-                            : FontWeight.w700,
+                            ? FontWeight.w700
+                            : FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xxs),
@@ -588,7 +579,7 @@ class _PresetChip extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(
                     context,
-                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
               const SizedBox(width: AppSpacing.xs),
@@ -642,7 +633,7 @@ class _StorageOverview extends StatelessWidget {
                     Text(
                       l10n.storageSavings,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -730,17 +721,54 @@ class _RecentFiles extends StatelessWidget {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final ColorScheme colors = Theme.of(context).colorScheme;
     if (recent.isEmpty) {
+      // A quiet, compact inline state: the story illustration is reserved for
+      // the History empty state, so Recent activity stays unobtrusive.
       return AppSurface(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-        child: AppStoryEmptyState(
-          title: l10n.recentFilesEmptyTitle,
-          message: l10n.recentFilesEmptyMessage,
-          action: AppButton(
-            label: l10n.choosePhotos,
-            icon: Icons.add_photo_alternate_rounded,
-            onPressed: onSelectImages,
-            expand: true,
-          ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(
+              Icons.history_rounded,
+              size: AppIconSizes.sm + 2,
+              color: colors.onSurfaceVariant.withValues(alpha: .7),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    l10n.recentFilesEmptyTitle,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    l10n.recentFilesEmptyMessage,
+                    style: AppTypography.caption(context),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            // Flexible + FittedBox keeps the action on one line at normal
+            // sizes and gently scales it only when the button genuinely can't
+            // fit (smallest phones at maximum text scale).
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: onSelectImages,
+                  child: Text(l10n.choosePhotos),
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -989,7 +1017,7 @@ class _TipsCarouselState extends State<_TipsCarousel> {
                   Text(
                     tip.title(l10n),
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs),

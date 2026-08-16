@@ -263,7 +263,7 @@ abstract class AppLocalizations {
   /// No description provided for @heroWelcome.
   ///
   /// In en, this message translates to:
-  /// **'Make room for what matters.'**
+  /// **'Compress photos privately on your device.'**
   String get heroWelcome;
 
   /// No description provided for @privateLocalWorkflow.
@@ -299,13 +299,13 @@ abstract class AppLocalizations {
   /// No description provided for @recentFilesEmptyTitle.
   ///
   /// In en, this message translates to:
-  /// **'Your recent files will appear here'**
+  /// **'No recent compressions yet'**
   String get recentFilesEmptyTitle;
 
   /// No description provided for @recentFilesEmptyMessage.
   ///
   /// In en, this message translates to:
-  /// **'Start with a photo and we’ll keep your latest results close at hand.'**
+  /// **'Choose photos to get started — your latest results will appear here.'**
   String get recentFilesEmptyMessage;
 
   /// No description provided for @learnHowItWorks.
@@ -337,6 +337,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Average compression'**
   String get averageCompression;
+
+  /// No description provided for @spaceSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Space saved'**
+  String get spaceSaved;
+
+  /// No description provided for @averageReduction.
+  ///
+  /// In en, this message translates to:
+  /// **'Average reduction'**
+  String get averageReduction;
 
   /// No description provided for @smartTip.
   ///
@@ -373,6 +385,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Many photos at once'**
   String get batchCompressSubtitle;
+
+  /// No description provided for @batchCompressMany.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch compress multiple photos'**
+  String get batchCompressMany;
 
   /// No description provided for @batchTitle.
   ///
@@ -2501,13 +2519,13 @@ abstract class AppLocalizations {
   /// No description provided for @settingsHeroTitle.
   ///
   /// In en, this message translates to:
-  /// **'Make Comprezza yours'**
+  /// **'Comprezza'**
   String get settingsHeroTitle;
 
   /// No description provided for @settingsHeroSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Personalize the workflow without giving up privacy or control.'**
+  /// **'Private photo compression.'**
   String get settingsHeroSubtitle;
 
   /// No description provided for @settingsRecommendations.

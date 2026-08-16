@@ -205,7 +205,7 @@ abstract final class AppThemeBuilder {
         RoundedRectangleBorder(borderRadius: controlRadius),
       ),
       textStyle: const WidgetStatePropertyAll<TextStyle>(
-        TextStyle(fontWeight: FontWeight.w700, letterSpacing: .1),
+        TextStyle(fontWeight: FontWeight.w600, letterSpacing: .1),
       ),
       animationDuration: const Duration(milliseconds: 140),
     );

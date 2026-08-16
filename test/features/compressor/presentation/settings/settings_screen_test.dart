@@ -51,7 +51,7 @@ void main() {
     await tester.pumpWidget(host(controller));
     await tester.pumpAndSettle();
 
-    expect(find.text('Make Comprezza yours'), findsOneWidget);
+    expect(find.text('Private photo compression.'), findsOneWidget);
     expect(find.text('General'), findsOneWidget);
     expect(find.text('Compression'), findsOneWidget);
     expect(find.text('Accessibility'), findsOneWidget);
