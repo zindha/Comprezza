@@ -1,5 +1,7 @@
 # Comprezza
 
+[![Comprezza CI](https://github.com/zindha/Comprezza/actions/workflows/ci.yml/badge.svg)](https://github.com/zindha/Comprezza/actions/workflows/ci.yml)
+
 **Comprezza – Photo Compressor & Converter** is a privacy-first Flutter application by **Dzynova Technologies**.
 
 > Compress. Convert. Optimize.
