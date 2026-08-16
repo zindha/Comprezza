@@ -580,9 +580,9 @@ class _FilterChip<T> extends StatelessWidget {
               ),
               child: Text(
                 label,
-                style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  sheetContext,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
             Flexible(
@@ -593,10 +593,7 @@ class _FilterChip<T> extends StatelessWidget {
                     ListTile(
                       title: Text(optionLabel(option)),
                       trailing: option == value
-                          ? Icon(
-                              Icons.check_rounded,
-                              color: colors.primary,
-                            )
+                          ? Icon(Icons.check_rounded, color: colors.primary)
                           : null,
                       onTap: () => Navigator.of(sheetContext).pop(option),
                     ),
@@ -1063,8 +1060,9 @@ class _SummaryGrid extends StatelessWidget {
     final int reductionPercent = averageRatio > 1
         ? (100 * (1 - 1 / averageRatio)).round()
         : 0;
-    final String reductionValue =
-        reductionPercent > 0 ? '$reductionPercent%' : '—';
+    final String reductionValue = reductionPercent > 0
+        ? '$reductionPercent%'
+        : '—';
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final int columns = constraints.maxWidth >= 560 ? 3 : 1;
