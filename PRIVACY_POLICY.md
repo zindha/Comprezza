@@ -11,8 +11,8 @@
 > app's legal destination.**
 >
 > - Effective date: `[REPLACE_WITH_EFFECTIVE_DATE]`
-> - Privacy contact email: `[REPLACE_WITH_MONITORED_PRIVACY_EMAIL]`
-> - Support contact email: `[REPLACE_WITH_MONITORED_SUPPORT_EMAIL]`
+> - Privacy contact email: `zindhak@gmail.com`
+> - Support contact email: `zindhak@gmail.com`
 > - Publisher address and jurisdiction: `[REPLACE_WITH_LEGAL_ENTITY_ADDRESS_AND_JURISDICTION]`
 > - Published policy URL: `[REPLACE_WITH_PUBLIC_HTTPS_PRIVACY_POLICY_URL]`
 
@@ -110,8 +110,8 @@ material revisions.
 
 ## 10. Contact
 
-For privacy questions, contact: `[REPLACE_WITH_MONITORED_PRIVACY_EMAIL]`
-For product support, contact: `[REPLACE_WITH_MONITORED_SUPPORT_EMAIL]`
+For privacy questions, contact: `zindhak@gmail.com`
+For product support, contact: `zindhak@gmail.com`
 Publisher address and jurisdiction: `[REPLACE_WITH_LEGAL_ENTITY_ADDRESS_AND_JURISDICTION]`
 
 ## 11. Release approval record

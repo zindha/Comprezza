@@ -79,8 +79,9 @@ claim features not present in the exact uploaded AAB.
 
 | Field | Value |
 |---|---|
-| Support email | `[REPLACE_WITH_MONITORED_SUPPORT_EMAIL]` |
+| Support email | `zindhak@gmail.com` |
 | Support URL | `[REPLACE_WITH_PUBLIC_SUPPORT_URL]` |
+| Privacy email | `zindhak@gmail.com` |
 | Privacy policy URL | `[REPLACE_WITH_PUBLIC_HTTPS_PRIVACY_POLICY_URL]` |
 | Website | `[REPLACE_WITH_PUBLIC_WEBSITE_URL]` |
 

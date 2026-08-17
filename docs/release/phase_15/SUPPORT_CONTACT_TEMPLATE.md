@@ -2,7 +2,7 @@
 
 Replace every bracketed field before publication.
 
-- **Support email:** `[REPLACE_WITH_MONITORED_SUPPORT_EMAIL]`
+- **Support email:** `zindhak@gmail.com`
 - **Support URL:** `[REPLACE_WITH_PUBLIC_SUPPORT_URL]`
 - **Support hours/time zone:** `[REPLACE_WITH_SUPPORT_HOURS]`
 - **First-response target:** `[REPLACE_WITH_RESPONSE_TARGET]`
@@ -10,7 +10,7 @@ Replace every bracketed field before publication.
 
 ## Public support text
 
-For help with Comprezza, contact `[REPLACE_WITH_SUPPORT_EMAIL_OR_URL]`. Include the app version, Android version/device, and steps to reproduce. Do not send personal images or secrets unless support specifically requests a safe test file.
+For help with Comprezza, contact `zindhak@gmail.com`. Include the app version, Android version/device, and steps to reproduce. Do not send personal images or secrets unless support specifically requests a safe test file.
 
 ## Verification
 

@@ -2,7 +2,7 @@
 
 Replace every bracketed field before publication and obtain legal approval.
 
-- **Privacy email:** `[REPLACE_WITH_MONITORED_PRIVACY_EMAIL]`
+- **Privacy email:** `zindhak@gmail.com`
 - **Published privacy policy URL:** `[REPLACE_WITH_PUBLIC_HTTPS_PRIVACY_POLICY_URL]`
 - **Legal entity:** `[REPLACE_WITH_LEGAL_ENTITY_NAME]`
 - **Postal address/jurisdiction:** `[REPLACE_WITH_LEGAL_ENTITY_ADDRESS_AND_JURISDICTION]`
