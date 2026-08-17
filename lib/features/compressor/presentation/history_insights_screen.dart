@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart' as intl;
 
+import '../../../app/routing/app_routes.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/utils/file_size_formatter.dart';
 import '../../../l10n/app_localizations.dart';
@@ -20,7 +22,11 @@ Future<void> _runHistoryAction(
   } catch (_) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).genericError)),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).genericError),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ),
       );
     }
   }
@@ -84,6 +90,17 @@ class _HistoryInsightsScreenState extends State<HistoryInsightsScreen>
     final AppLocalizations l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
+        // Explicit leading back control: pops when this screen was pushed,
+        // otherwise returns to the home destination.
+        leading: BackButton(
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).maybePop();
+            } else {
+              context.go(AppRoutes.home);
+            }
+          },
+        ),
         title: Text(widget.initialTab == 1 ? l10n.insights : l10n.history),
         actions: <Widget>[
           PopupMenuButton<HistoryExportFormat>(
@@ -165,6 +182,8 @@ class _HistoryInsightsScreenState extends State<HistoryInsightsScreen>
       ..showSnackBar(
         SnackBar(
           content: Text(l10n.historyDeleted),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
           action: SnackBarAction(
             label: l10n.undo,
             onPressed: () {
@@ -191,13 +210,19 @@ class _HistoryInsightsScreenState extends State<HistoryInsightsScreen>
               ? l10n.historyPdfReserved
               : l10n.historyExportReady,
         ),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
       ),
     );
   }
 
   void _showActionError(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context).genericError)),
+      SnackBar(
+        content: Text(AppLocalizations.of(context).genericError),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+      ),
     );
   }
 }
@@ -940,7 +965,16 @@ class _HistoryEmptyState extends StatelessWidget {
               child: Text(l10n.historyClearFilters),
             )
           : FilledButton.icon(
-              onPressed: onOpenCompression,
+              onPressed: () {
+                final VoidCallback? open = onOpenCompression;
+                if (open != null) {
+                  open();
+                } else {
+                  // Fall back to direct navigation so the empty state always
+                  // leads somewhere, even without a wired callback.
+                  context.push(AppRoutes.compression);
+                }
+              },
               icon: const Icon(Icons.add_photo_alternate_outlined),
               label: Text(l10n.choosePhotos),
             ),

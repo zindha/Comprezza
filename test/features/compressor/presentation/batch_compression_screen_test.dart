@@ -9,7 +9,6 @@ void main() {
     id: id,
     path: '/missing/$id.jpg',
     name: '$id.jpg',
-    bytes: 2 * 1024 * 1024,
     width: 2400,
     height: 1600,
     format: 'JPEG',

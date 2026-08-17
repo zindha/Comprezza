@@ -280,6 +280,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get batchCancel => 'Cancel queue';
 
   @override
+  String get batchRetryAll => 'Retry all';
+
+  @override
   String get batchRetryFailed => 'Retry failed';
 
   @override
@@ -827,6 +830,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get estimatedSavings => 'Estimated savings';
+
+  @override
+  String get estimatedTimeRemaining => 'Estimated time remaining';
 
   @override
   String get compressionRatio => 'Compression ratio';

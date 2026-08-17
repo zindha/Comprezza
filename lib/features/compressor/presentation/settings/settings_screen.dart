@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../app/routing/app_routes.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -50,6 +52,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_errorMessage(error, AppLocalizations.of(context))),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
           ),
         );
       });
@@ -71,6 +75,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final AppLocalizations l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
+        // Explicit leading back control: pops when this screen was pushed,
+        // otherwise returns to the home destination.
+        leading: BackButton(
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).maybePop();
+            } else {
+              context.go(AppRoutes.home);
+            }
+          },
+        ),
         title: Text(l10n.settings),
         actions: <Widget>[
           ListenableBuilder(
@@ -141,6 +156,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context).settingsExportFailed),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
         ),
       );
     } catch (_) {
@@ -148,6 +165,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context).settingsExportFailed),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -172,6 +191,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(AppLocalizations.of(context).settingsExportReady),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -181,6 +202,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context).settingsExportFailed),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
         ),
       );
       return;
@@ -189,6 +212,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context).settingsExportFailed),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
         ),
       );
       return;
@@ -917,7 +942,11 @@ class _SettingsContent extends StatelessWidget {
       if (!context.mounted) return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context).genericError)),
+      SnackBar(
+        content: Text(AppLocalizations.of(context).genericError),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+      ),
     );
   }
 
@@ -958,13 +987,16 @@ class _SettingsContent extends StatelessWidget {
     if (confirmed != true || !context.mounted) return;
     await controller.importSettings(encoded);
     if (!context.mounted) return;
+    final bool importFailed = controller.state.error != null;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          controller.state.error == null
-              ? l10n.settingsImportConfiguration
-              : l10n.settingsImportFailed,
+          importFailed
+              ? l10n.settingsImportFailed
+              : l10n.settingsImportConfiguration,
         ),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: importFailed ? 4 : 3),
       ),
     );
   }

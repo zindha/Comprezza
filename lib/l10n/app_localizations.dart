@@ -614,6 +614,12 @@ abstract class AppLocalizations {
   /// **'Cancel queue'**
   String get batchCancel;
 
+  /// No description provided for @batchRetryAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry all'**
+  String get batchRetryAll;
+
   /// No description provided for @batchRetryFailed.
   ///
   /// In en, this message translates to:
@@ -1633,6 +1639,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Estimated output'**
   String get estimatedSize;
+
+  /// No description provided for @estimatedTimeRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated time remaining'**
+  String get estimatedTimeRemaining;
 
   /// No description provided for @estimatedSavings.
   ///

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -27,6 +28,14 @@ class BatchCompressionScreen extends StatefulWidget {
 
 class _BatchCompressionScreenState extends State<BatchCompressionScreen> {
   BatchCompressionController get controller => widget.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // Restore a previously persisted session (in-flight or completed) so
+    // re-entering the screen never loses the queue.
+    unawaited(controller.restoreProgress());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -969,7 +978,7 @@ class _BatchImageTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '${FileSizeFormatter.format(item.bytes)} → ${FileSizeFormatter.format(item.estimatedBytes ?? 0)}',
+                  '${FileSizeFormatter.format(controller.bytesOf(item.id))} → ${FileSizeFormatter.format(item.estimatedBytes ?? 0)}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 if (item.status == BatchQueueStatus.failed) ...<Widget>[
@@ -1175,7 +1184,7 @@ class _BatchActions extends StatelessWidget {
           ),
         if (hasFailed && controller.phase == BatchWorkflowPhase.completed)
           FilledButton.tonalIcon(
-            onPressed: controller.retryFailed,
+            onPressed: controller.retryAllFailed,
             icon: const Icon(Icons.refresh_rounded),
             label: Text(l10n.batchRetryFailed),
           ),
@@ -1222,11 +1231,11 @@ class _BatchActions extends StatelessWidget {
       if (count > 0) {
         _message(context, l10n.batchSavedToDevice(count));
       } else {
-        _message(context, l10n.batchSaveFailed);
+        _message(context, l10n.batchSaveFailed, error: true);
       }
     } on Object {
       if (!context.mounted) return;
-      _message(context, l10n.batchSaveFailed);
+      _message(context, l10n.batchSaveFailed, error: true);
     }
   }
 
@@ -1239,11 +1248,11 @@ class _BatchActions extends StatelessWidget {
       if (count > 0) {
         _message(context, l10n.openingShareSheet);
       } else {
-        _message(context, l10n.batchShareFailed);
+        _message(context, l10n.batchShareFailed, error: true);
       }
     } on Object {
       if (!context.mounted) return;
-      _message(context, l10n.batchShareFailed);
+      _message(context, l10n.batchShareFailed, error: true);
     }
   }
 
@@ -1256,7 +1265,7 @@ class _BatchActions extends StatelessWidget {
       await _showZipSheet(context, zip);
     } on Object {
       if (!context.mounted) return;
-      _message(context, l10n.batchZipFailed);
+      _message(context, l10n.batchZipFailed, error: true);
     }
   }
 
@@ -1358,7 +1367,7 @@ class _BatchActions extends StatelessWidget {
       if (context.mounted) _message(context, l10n.batchZipSaved);
     } on Object {
       if (!context.mounted) return;
-      _message(context, l10n.batchZipFailed);
+      _message(context, l10n.batchZipFailed, error: true);
     }
   }
 
@@ -1370,15 +1379,20 @@ class _BatchActions extends StatelessWidget {
       if (context.mounted) _message(context, l10n.openingShareSheet);
     } on Object {
       if (!context.mounted) return;
-      _message(context, l10n.batchZipFailed);
+      _message(context, l10n.batchZipFailed, error: true);
     }
   }
 
-  void _message(BuildContext context, String message) {
+  /// Shows a floating snackbar: 3 seconds for confirmations, 4 for errors.
+  void _message(BuildContext context, String message, {bool error = false}) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: error ? 4 : 3),
+        ),
       );
   }
 }
@@ -1487,6 +1501,20 @@ class _SummaryCard extends StatelessWidget {
                 ),
             ],
           ),
+          if (summary.failed > 1) ...<Widget>[
+            const SizedBox(height: AppSpacing.lg),
+            // One tap retries every failed item; the queue card then shows
+            // the retry progress live.
+            FilledButton.tonalIcon(
+              onPressed: controller.isBusy
+                  ? null
+                  : controller.retryAllFailed,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(
+                '${l10n.batchRetryAll} (${summary.failed})',
+              ),
+            ),
+          ],
         ],
       ),
     );

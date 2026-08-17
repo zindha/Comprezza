@@ -1,10 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../../core/errors/app_error.dart';
+import '../../../core/errors/app_exception.dart';
+import '../../../core/errors/error_code.dart';
+import '../../../core/errors/error_mapper.dart';
 import '../../../core/utils/file_size_formatter.dart';
 import '../data/services/file_management/interfaces/file_management_interfaces.dart';
 import '../data/services/file_management/models/file_management_models.dart';
@@ -38,6 +44,13 @@ class CompressorController extends ChangeNotifier {
   bool _disposed = false;
   _ExportAction? _lastExportAction;
   bool _exportFailed = false;
+
+  /// When the current compression pass started, for progress display.
+  DateTime? _compressionStartedAt;
+
+  /// Duration of the most recent completed compression pass, used as a
+  /// baseline to estimate how long the current pass has left.
+  Duration? _lastCompressionDuration;
 
   /// Current dashboard status.
   CompressorStatus status = CompressorStatus.empty;
@@ -73,6 +86,23 @@ class CompressorController extends ChangeNotifier {
 
   /// Whether an export operation is active.
   bool isExporting = false;
+
+  /// How long the current compression pass has been running.
+  Duration get compressionElapsed {
+    final DateTime? started = _compressionStartedAt;
+    if (started == null) return Duration.zero;
+    return DateTime.now().difference(started);
+  }
+
+  /// Estimated time remaining for the current pass, derived from the duration
+  /// of the previous pass. Null until a baseline pass has completed.
+  Duration? get estimatedCompressionRemaining {
+    final Duration? baseline = _lastCompressionDuration;
+    final DateTime? started = _compressionStartedAt;
+    if (baseline == null || started == null) return null;
+    final Duration remaining = baseline - DateTime.now().difference(started);
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
 
   /// Whether the last export/share operation failed and can be retried.
   bool get exportFailed => _exportFailed;
@@ -282,15 +312,33 @@ class CompressorController extends ChangeNotifier {
     final double ratio = output.bytes > 0 && source.bytes > 0
         ? source.bytes / output.bytes
         : 1;
-    // A cheap deterministic identity (not a content hash) keeps the record
-    // stable across reads without reading the whole source file again.
-    final String checksum = sha256
-        .convert(
-          utf8.encode(
-            '${source.filePath}|${source.bytes}|'
-            '${source.width}x${source.height}',
-          ),
-        )
+    // The record identity is a SHA-256 of the source content plus the
+    // settings that produced this output. Persisting the same source with the
+    // same settings therefore replaces the previous record instead of
+    // inserting a duplicate, while a different setting keeps its own entry.
+    final String contentHash = await _hashFile(source.filePath);
+    String contentIdentity = contentHash;
+    if (contentIdentity.isEmpty) {
+      // Fall back to a cheap metadata identity when the source is unreadable
+      // so the record still gets a stable id.
+      contentIdentity = sha256
+          .convert(
+            utf8.encode(
+              '${source.filePath}|${source.bytes}|'
+              '${source.width}x${source.height}',
+            ),
+          )
+          .toString();
+    }
+    final String settingsSignature = [
+      'q$quality',
+      'f${format.name}',
+      's${scale.toStringAsFixed(2)}',
+      'm$keepMetadata',
+      't${targetBytes ?? 0}',
+    ].join('|');
+    final String id = sha256
+        .convert(utf8.encode('$contentIdentity|$settingsSignature'))
         .toString();
     final String preset = targetBytes == null
         ? 'Quality $quality'
@@ -299,19 +347,38 @@ class CompressorController extends ChangeNotifier {
     try {
       await history.save(
         CompressionHistoryRecord(
-          id: '${now.microsecondsSinceEpoch}',
+          id: id,
           originalPath: source.filePath,
           compressedPath: output.filePath,
           createdAt: now,
           preset: preset,
           compressionRatio: ratio,
           savedBytes: savedBytes,
-          checksum: checksum,
+          checksum: contentIdentity,
         ),
       );
     } catch (_) {
       // Best-effort recording: storage failures are intentionally ignored so
       // a completed export is never surfaced as an error.
+    }
+  }
+
+  /// Computes a streaming SHA-256 of the source file on a background isolate.
+  ///
+  /// The digest is the stable content identity used for the history record
+  /// id. Reading is streaming (never the whole file in memory) and runs off
+  /// the UI isolate; an unreadable or missing source returns an empty string
+  /// so the caller can fall back to a metadata-based identity.
+  Future<String> _hashFile(String filePath) async {
+    try {
+      return await Isolate.run<String>(() async {
+        final File file = File(filePath);
+        if (!await file.exists()) return '';
+        final Digest digest = await sha256.bind(file.openRead()).first;
+        return digest.toString();
+      });
+    } on Object {
+      return '';
     }
   }
 
@@ -397,6 +464,7 @@ class CompressorController extends ChangeNotifier {
     // workflow renders it as the last result until the new output is ready.
     status = CompressorStatus.processing;
     errorMessage = null;
+    _compressionStartedAt = DateTime.now();
     if (previousStatus != CompressorStatus.processing) notifyListeners();
     try {
       final CompressedAsset result = await _compressionGateway.compress(
@@ -406,6 +474,9 @@ class CompressorController extends ChangeNotifier {
         scale: scale,
         targetBytes: targetBytes,
         keepExif: keepMetadata,
+      );
+      _lastCompressionDuration = DateTime.now().difference(
+        _compressionStartedAt!,
       );
       if (currentOperation != _operationId || _disposed) {
         await _deleteTemporaryFile(result.filePath);
@@ -422,8 +493,10 @@ class CompressorController extends ChangeNotifier {
         unawaited(_deleteTemporaryFile(previous.filePath));
       }
       status = CompressorStatus.ready;
+      _compressionStartedAt = null;
       notifyListeners();
     } catch (error) {
+      _compressionStartedAt = null;
       if (currentOperation == _operationId && !_disposed) {
         _setError(_friendlyError(error));
       }
@@ -446,10 +519,16 @@ class CompressorController extends ChangeNotifier {
   }
 
   String _friendlyError(Object error) {
+    if (error is AppError) return error.message;
     if (error is UnsupportedError) {
       return error.message?.toString() ??
           'This action is not supported on this device.';
     }
+    // Centralized classification turns platform failures (no space,
+    // permission denied, unsupported format, out of memory) into messages a
+    // user can act on. Unknown infrastructure keeps its own text.
+    final AppException mapped = ErrorMapper.map(error);
+    if (mapped.code != ErrorCode.unknown) return mapped.message;
     final String message = error.toString();
     return message.startsWith('Exception:')
         ? message.substring('Exception:'.length).trim()

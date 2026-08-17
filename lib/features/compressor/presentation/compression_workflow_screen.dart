@@ -63,11 +63,15 @@ class _CompressionWorkflowScreenState extends State<CompressionWorkflowScreen> {
     _presetId = 'balanced';
   }
 
-  void _showMessage(String message) {
+  void _showMessage(String message, {bool error = false}) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: error ? 4 : 3),
+        ),
       );
   }
 
@@ -183,6 +187,7 @@ class _CompressionWorkflowScreenState extends State<CompressionWorkflowScreen> {
     }
     _showMessage(
       controller.errorMessage ?? AppLocalizations.of(context).genericError,
+      error: true,
     );
   }
 
@@ -196,6 +201,7 @@ class _CompressionWorkflowScreenState extends State<CompressionWorkflowScreen> {
     }
     _showMessage(
       controller.errorMessage ?? AppLocalizations.of(context).genericError,
+      error: true,
     );
   }
 
@@ -285,6 +291,7 @@ class _CompressionWorkflowScreenState extends State<CompressionWorkflowScreen> {
                     const SizedBox(height: 16),
                     if (isProcessing && controller.compressed == null)
                       _ProcessingCard(
+                        controller: controller,
                         message: l10n.compressing,
                         onCancel: _startOver,
                       )
@@ -358,6 +365,7 @@ class _CompressionWorkflowScreenState extends State<CompressionWorkflowScreen> {
                       const SizedBox(height: 16),
                       if (isProcessing)
                         _ProcessingCard(
+                          controller: controller,
                           message: l10n.compressing,
                           onCancel: _startOver,
                         )
@@ -1530,15 +1538,48 @@ class _EstimateCard extends StatelessWidget {
   }
 }
 
-class _ProcessingCard extends StatelessWidget {
-  const _ProcessingCard({required this.message, required this.onCancel});
+class _ProcessingCard extends StatefulWidget {
+  const _ProcessingCard({
+    required this.controller,
+    required this.message,
+    required this.onCancel,
+  });
 
+  final CompressorController controller;
   final String message;
   final VoidCallback onCancel;
 
   @override
+  State<_ProcessingCard> createState() => _ProcessingCardState();
+}
+
+/// Live compression progress: an indeterminate bar while the engine works
+/// (single-image encoding reports no fractional progress), the elapsed time,
+/// and an estimated time remaining derived from the previous pass. A
+/// determinate percentage is shown as soon as an engine reports progress.
+class _ProcessingCardState extends State<_ProcessingCard> {
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context);
     final ColorScheme colors = Theme.of(context).colorScheme;
+    final Duration elapsed = widget.controller.compressionElapsed;
+    final Duration? eta = widget.controller.estimatedCompressionRemaining;
     return AppSurface(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -1546,29 +1587,57 @@ class _ProcessingCard extends StatelessWidget {
           children: <Widget>[
             Semantics(
               liveRegion: true,
-              label: message,
+              label: widget.message,
               child: const ExcludeSemantics(child: LinearProgressIndicator()),
             ),
             const SizedBox(height: 14),
-            Text(message, style: Theme.of(context).textTheme.titleMedium),
+            Text(widget.message, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(
-              AppLocalizations.of(context).processingImage,
+              l10n.processingImage,
               style: Theme.of(
                 context,
               ).textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 10),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 18,
+              runSpacing: 6,
+              children: <Widget>[
+                Text(
+                  '${l10n.processingTime}: ${_format(elapsed)}',
+                  style: AppTypography.tabular(
+                    Theme.of(context).textTheme.labelLarge!,
+                  ).copyWith(color: colors.onSurfaceVariant),
+                ),
+                if (eta != null)
+                  Text(
+                    '${l10n.estimatedTimeRemaining}: ${_format(eta)}',
+                    style: AppTypography.tabular(
+                      Theme.of(context).textTheme.labelLarge!,
+                    ).copyWith(color: colors.onSurfaceVariant),
+                  ),
+              ],
+            ),
             const SizedBox(height: 8),
             TextButton.icon(
-              onPressed: onCancel,
+              onPressed: widget.onCancel,
               icon: const Icon(Icons.close_rounded),
-              label: Text(AppLocalizations.of(context).cancel),
+              label: Text(l10n.cancel),
             ),
           ],
         ),
       ),
     );
+  }
+
+  String _format(Duration duration) {
+    if (duration.inMinutes > 0) {
+      return '${duration.inMinutes}m ${duration.inSeconds.remainder(60)}s';
+    }
+    return '${duration.inSeconds}s';
   }
 }
 

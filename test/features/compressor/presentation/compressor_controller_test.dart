@@ -117,6 +117,98 @@ void main() {
       expect(controller.exportFailed, isTrue);
     });
 
+    test(
+      'recompressing the same source with the same settings replaces the record',
+      () async {
+        final _RecordingHistory history = _RecordingHistory();
+        final CompressorController controller = CompressorController(
+          pickerGateway: _FakePicker(),
+          compressionGateway: _FakeCompression(),
+          exportGateway: _FakeExport(),
+          history: history,
+        );
+        addTearDown(controller.dispose);
+        controller
+          ..original = const PhotoAsset(
+            filePath: '/original/photo.jpg',
+            bytes: 2000000,
+            width: 2400,
+            height: 1600,
+          )
+          ..compressed = const CompressedAsset(
+            filePath: '/output/photo.jpg',
+            bytes: 500000,
+            width: 2400,
+            height: 1600,
+            quality: 72,
+            format: CompressorFormat.jpeg,
+          )
+          ..status = CompressorStatus.ready;
+
+        // The record identity is a content hash of the source plus settings:
+        // a second export of the same source+settings updates the existing
+        // record instead of inserting a duplicate.
+        await controller.saveToDevice();
+        await pumpEventQueue();
+        await controller.saveToDevice();
+        await pumpEventQueue();
+
+        expect(history.saved, hasLength(1));
+        expect(history.saved.single.savedBytes, 1500000);
+      },
+    );
+
+    test(
+      'different settings on the same source produce distinct records',
+      () async {
+        final _RecordingHistory history = _RecordingHistory();
+        final CompressorController controller = CompressorController(
+          pickerGateway: _FakePicker(),
+          compressionGateway: _FakeCompression(),
+          exportGateway: _FakeExport(),
+          history: history,
+        );
+        addTearDown(controller.dispose);
+        controller
+          ..original = const PhotoAsset(
+            filePath: '/original/photo.jpg',
+            bytes: 2000000,
+            width: 2400,
+            height: 1600,
+          )
+          ..compressed = const CompressedAsset(
+            filePath: '/output/photo.jpg',
+            bytes: 500000,
+            width: 2400,
+            height: 1600,
+            quality: 72,
+            format: CompressorFormat.jpeg,
+          )
+          ..status = CompressorStatus.ready;
+
+        await controller.saveToDevice();
+        await pumpEventQueue();
+        final String firstId = history.saved.single.id;
+
+        // A different quality yields a different record id, so both entries
+        // coexist in history.
+        controller.quality = 88;
+        controller.compressed = const CompressedAsset(
+          filePath: '/output/photo.jpg',
+          bytes: 400000,
+          width: 2400,
+          height: 1600,
+          quality: 88,
+          format: CompressorFormat.jpeg,
+        );
+        await controller.saveToDevice();
+        await pumpEventQueue();
+
+        expect(history.saved, hasLength(2));
+        expect(history.saved[1].id, isNot(firstId));
+      },
+    );
+
     test('uses a target-size preset label when targetBytes is set', () async {
       final _RecordingHistory history = _RecordingHistory();
       final CompressorController controller = CompressorController(
@@ -158,6 +250,9 @@ final class _RecordingHistory implements HistoryStorage {
 
   @override
   Future<Result<void>> save(CompressionHistoryRecord record) async {
+    // Mirror JsonHistoryStorage: the record id is the identity and saving
+    // replaces any previous record with the same id.
+    saved.removeWhere((CompressionHistoryRecord item) => item.id == record.id);
     saved.add(record);
     return const Result<void>.success(null);
   }

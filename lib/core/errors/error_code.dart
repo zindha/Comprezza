@@ -47,4 +47,13 @@ enum ErrorCode {
 
   /// An operation exceeded its deadline.
   timeout,
+
+  /// The device has no storage space available for the output.
+  storageFull,
+
+  /// The selected image format cannot be decoded by the installed codecs.
+  unsupportedFormat,
+
+  /// The device ran out of memory while processing an image.
+  outOfMemory,
 }

@@ -311,6 +311,9 @@ final class AppDependencies implements Disposable {
         exportGateway: services.get<ImageExportGateway>(),
         shareService: services.get<ShareExportService>(),
         storage: services.get<StorageManager>(),
+        // Persist in-flight batch state to app-private storage so re-entering
+        // the screen (or relaunching the app) restores the queue.
+        progressStore: FileBatchProgressStore(),
       );
     });
     return AppDependencies._(locator: locator);

@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../../core/utils/file_size_formatter.dart';
 import '../data/services/file_management/interfaces/file_management_interfaces.dart';
@@ -39,12 +42,12 @@ enum BatchResizeChoice { original, percent75, percent50, percent25 }
 
 /// A presentation-owned image descriptor. It deliberately contains metadata,
 /// not decoded image buffers, so large selections remain memory-bounded.
+/// Source sizes are read on demand from [path] instead of being retained.
 class BatchImageItem {
   const BatchImageItem({
     required this.id,
     required this.path,
     required this.name,
-    required this.bytes,
     required this.width,
     required this.height,
     required this.format,
@@ -61,7 +64,6 @@ class BatchImageItem {
   final String id;
   final String path;
   final String name;
-  final int bytes;
   final int width;
   final int height;
   final String format;
@@ -75,6 +77,10 @@ class BatchImageItem {
   final int? outputBytes;
 
   int get effectiveQuality => qualityOverride ?? recommendedQuality;
+
+  /// Reads the source file size on demand without ever retaining the file
+  /// contents in memory, keeping 50+ image batches memory-bounded.
+  Future<int> getBytes() => File(path).length();
 
   BatchImageItem copyWith({
     String? id,
@@ -93,7 +99,6 @@ class BatchImageItem {
     id: id ?? this.id,
     path: path,
     name: name,
-    bytes: bytes,
     width: width,
     height: height,
     format: format,
@@ -108,6 +113,72 @@ class BatchImageItem {
     outputPath: clearOutputPath ? null : outputPath ?? this.outputPath,
     outputBytes: outputBytes ?? this.outputBytes,
   );
+
+  /// Serializes the item for progress persistence.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'id': id,
+    'path': path,
+    'name': name,
+    'width': width,
+    'height': height,
+    'format': format,
+    'estimatedBytes': estimatedBytes,
+    'recommendedQuality': recommendedQuality,
+    'qualityOverride': qualityOverride,
+    'status': status.name,
+    'progress': progress,
+    'errorMessage': errorMessage,
+    'outputPath': outputPath,
+    'outputBytes': outputBytes,
+  };
+
+  /// Restores an item from persisted progress, or null when the entry is
+  /// malformed so a single bad record cannot break the whole restore.
+  static BatchImageItem? fromJson(Map<String, Object?> json) {
+    final Object? id = json['id'];
+    final Object? path = json['path'];
+    final Object? name = json['name'];
+    final Object? width = json['width'];
+    final Object? height = json['height'];
+    final Object? format = json['format'];
+    final Object? progress = json['progress'];
+    final Object? estimated = json['estimatedBytes'];
+    final Object? recommended = json['recommendedQuality'];
+    final Object? override = json['qualityOverride'];
+    final Object? outputBytes = json['outputBytes'];
+    if (id is! String ||
+        path is! String ||
+        name is! String ||
+        width is! num ||
+        height is! num ||
+        format is! String) {
+      return null;
+    }
+    return BatchImageItem(
+      id: id,
+      path: path,
+      name: name,
+      width: width.toInt(),
+      height: height.toInt(),
+      format: format,
+      estimatedBytes: estimated is num ? estimated.toInt() : null,
+      recommendedQuality: recommended is num
+          ? recommended.toInt().clamp(1, 100).toInt()
+          : 72,
+      qualityOverride: override is num
+          ? override.toInt().clamp(1, 100).toInt()
+          : null,
+      status: _batchStatusFromName(json['status']) ?? BatchQueueStatus.waiting,
+      progress: progress is num ? progress.toDouble().clamp(0, 1).toDouble() : 0,
+      errorMessage: json['errorMessage'] is String
+          ? json['errorMessage']! as String
+          : null,
+      outputPath: json['outputPath'] is String
+          ? json['outputPath']! as String
+          : null,
+      outputBytes: outputBytes is num ? outputBytes.toInt() : null,
+    );
+  }
 }
 
 /// Global settings applied to every batch entry unless an item override exists.
@@ -144,6 +215,33 @@ class BatchCompressionSettings {
     keepMetadata: keepMetadata ?? this.keepMetadata,
     targetBytes: clearTargetBytes ? null : targetBytes ?? this.targetBytes,
   );
+
+  /// Serializes the settings for progress persistence.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'preset': preset,
+    'quality': quality,
+    'format': format.name,
+    'resize': resize.name,
+    'keepMetadata': keepMetadata,
+    'targetBytes': targetBytes,
+  };
+
+  /// Restores settings from persisted progress, or null when malformed.
+  static BatchCompressionSettings? fromJson(Map<String, Object?> json) {
+    final Object? quality = json['quality'];
+    final BatchOutputFormat? format = _batchFormatFromName(json['format']);
+    final BatchResizeChoice? resize = _resizeChoiceFromName(json['resize']);
+    final Object? targetBytes = json['targetBytes'];
+    if (quality is! num || format == null || resize == null) return null;
+    return BatchCompressionSettings(
+      preset: json['preset'] is String ? json['preset']! as String : 'Balanced',
+      quality: quality.toInt().clamp(1, 100).toInt(),
+      format: format,
+      resize: resize,
+      keepMetadata: json['keepMetadata'] == true,
+      targetBytes: targetBytes is num ? targetBytes.toInt() : null,
+    );
+  }
 }
 
 /// Result returned by the presentation processor seam.
@@ -228,6 +326,167 @@ class BatchCompressionSummary {
       compressedBytes == 0 ? 0 : processedOriginalBytes / compressedBytes;
 }
 
+/// A persisted snapshot of an in-flight (or finished) batch session.
+class BatchProgressSnapshot {
+  /// Creates a progress snapshot.
+  const BatchProgressSnapshot({
+    required this.version,
+    required this.items,
+    required this.settings,
+    required this.selectedIds,
+    required this.bytesById,
+    this.sessionRecordId,
+    this.savedAt,
+  });
+
+  /// Schema version for forward-compatible restores.
+  final int version;
+
+  /// Queue entries with their last known statuses and outputs.
+  final List<BatchImageItem> items;
+
+  /// Global settings applied to the restored queue.
+  final BatchCompressionSettings settings;
+
+  /// Ids the user had selected when the state was saved.
+  final List<String> selectedIds;
+
+  /// Last known source sizes keyed by item id (metadata, never buffers).
+  final Map<String, int> bytesById;
+
+  /// Stable session record id so retries replace the history entry.
+  final String? sessionRecordId;
+
+  /// When the snapshot was written (diagnostics only).
+  final DateTime? savedAt;
+
+  /// Serializes the snapshot to local JSON.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'version': version,
+    'savedAt': savedAt?.toIso8601String(),
+    'sessionRecordId': sessionRecordId,
+    'settings': settings.toJson(),
+    'selectedIds': selectedIds,
+    'bytesById': bytesById,
+    'items': items.map((BatchImageItem item) => item.toJson()).toList(),
+  };
+
+  /// Restores a snapshot from local JSON, or null when the document is
+  /// corrupted so the batch can simply start fresh.
+  static BatchProgressSnapshot? fromJson(Map<String, Object?> json) {
+    final Object? version = json['version'];
+    final Object? settings = json['settings'];
+    final Object? selectedIds = json['selectedIds'];
+    final Object? bytesById = json['bytesById'];
+    final Object? items = json['items'];
+    if (version is! int ||
+        settings is! Map<String, Object?> ||
+        selectedIds is! List<Object?> ||
+        bytesById is! Map<String, Object?> ||
+        items is! List<Object?>) {
+      return null;
+    }
+    final BatchCompressionSettings? parsedSettings =
+        BatchCompressionSettings.fromJson(settings);
+    if (parsedSettings == null) return null;
+    final List<BatchImageItem> parsedItems = <BatchImageItem>[];
+    for (final Object? rawItem in items) {
+      if (rawItem is! Map<String, Object?>) return null;
+      final BatchImageItem? item = BatchImageItem.fromJson(rawItem);
+      if (item == null) return null;
+      parsedItems.add(item);
+    }
+    final Map<String, int> parsedBytes = <String, int>{};
+    for (final MapEntry<String, Object?> entry in bytesById.entries) {
+      if (entry.value is num) {
+        parsedBytes[entry.key] = (entry.value as num).toInt();
+      }
+    }
+    return BatchProgressSnapshot(
+      version: version,
+      items: parsedItems,
+      settings: parsedSettings,
+      selectedIds: selectedIds.whereType<String>().toList(growable: false),
+      bytesById: parsedBytes,
+      sessionRecordId: json['sessionRecordId'] is String
+          ? json['sessionRecordId']! as String
+          : null,
+      savedAt: json['savedAt'] is String
+          ? DateTime.tryParse(json['savedAt']! as String)
+          : null,
+    );
+  }
+}
+
+/// Persists an in-flight batch session so it can be restored on re-entry.
+abstract interface class BatchProgressStore {
+  /// Reads the last saved session, or null when none exists or it is corrupt.
+  Future<BatchProgressSnapshot?> read();
+
+  /// Persists a snapshot of the current session.
+  Future<void> write(BatchProgressSnapshot snapshot);
+
+  /// Removes the persisted session (e.g. after the user starts over).
+  Future<void> clear();
+}
+
+/// Default progress persistence backed by an app-private JSON file.
+///
+/// The write is atomic (temp file + rename) and every read failure is treated
+/// as "no session" so corrupted state never blocks the workflow.
+final class FileBatchProgressStore implements BatchProgressStore {
+  /// Creates a file-backed store, optionally overriding the directory for tests.
+  FileBatchProgressStore({Future<Directory> Function()? directoryProvider})
+    : _directoryProvider = directoryProvider ?? getApplicationSupportDirectory;
+
+  final Future<Directory> Function() _directoryProvider;
+
+  static const String _fileName = 'batch_progress.json';
+
+  Future<File> _file() async => File(
+    p.join((await _directoryProvider()).path, _fileName),
+  );
+
+  @override
+  Future<BatchProgressSnapshot?> read() async {
+    try {
+      final File file = await _file();
+      if (!await file.exists()) return null;
+      final Object? decoded = jsonDecode(await file.readAsString());
+      if (decoded is! Map<String, Object?>) return null;
+      return BatchProgressSnapshot.fromJson(decoded);
+    } on Object {
+      // Corrupted or unreadable progress is ignored so the batch starts fresh.
+      return null;
+    }
+  }
+
+  @override
+  Future<void> write(BatchProgressSnapshot snapshot) async {
+    try {
+      final File file = await _file();
+      final File temp = File('${file.path}.tmp');
+      await temp.writeAsString(jsonEncode(snapshot.toJson()), flush: true);
+      if (await file.exists()) await file.delete();
+      await temp.rename(file.path);
+    } on Object {
+      // Persistence is best effort and must never fail the workflow.
+    }
+  }
+
+  @override
+  Future<void> clear() async {
+    try {
+      final File file = await _file();
+      if (await file.exists()) await file.delete();
+      final File temp = File('${file.path}.tmp');
+      if (await temp.exists()) await temp.delete();
+    } on Object {
+      // Best effort.
+    }
+  }
+}
+
 /// Presentation-only queue coordinator. The picker and processor are injected
 /// so the screen can be tested now and connected to the frozen application
 /// contracts only after the architecture freeze is lifted.
@@ -236,16 +495,25 @@ class BatchCompressionController extends ChangeNotifier {
     required BatchImagePicker picker,
     required BatchImageProcessor processor,
     HistoryStorage? history,
+    BatchProgressStore? progressStore,
     this.saveAllHandler,
     this.shareHandler,
     this.zipBuilder,
     this.zipSaver,
   }) : _picker = picker,
        _processor = processor,
-       _history = history;
+       _history = history,
+       _progressStore = progressStore;
 
   final BatchImagePicker _picker;
   final BatchImageProcessor _processor;
+
+  /// Optional persistent history sink. When present, completed batches record
+  /// an aggregated session so the History and Insights destinations count them.
+  final HistoryStorage? _history;
+
+  /// Optional progress persistence seam (wired by the DI adapter).
+  final BatchProgressStore? _progressStore;
 
   /// Optional device-gallery persistence seam (wired by the DI adapter).
   final BatchSaveAllHandler? saveAllHandler;
@@ -259,15 +527,16 @@ class BatchCompressionController extends ChangeNotifier {
   /// Optional ZIP-to-Downloads persistence seam.
   final BatchZipSaver? zipSaver;
 
-  /// Optional persistent history sink. When present, completed batches record
-  /// an aggregated session so the History and Insights destinations count them.
-  final HistoryStorage? _history;
-
   /// Stable record id for the current queue so retrying failed items replaces
   /// the session record with updated totals instead of duplicating it.
   String? _sessionRecordId;
   final List<BatchImageItem> _items = <BatchImageItem>[];
   final Set<String> _selectedIds = <String>{};
+
+  /// Source sizes keyed by item id. Sizes are metadata read on demand from the
+  /// file system; no decoded image data is ever retained.
+  final Map<String, int> _bytesById = <String, int>{};
+
   BatchCompressionSettings _settings = const BatchCompressionSettings();
   BatchWorkflowPhase _phase = BatchWorkflowPhase.selection;
   bool _selecting = false;
@@ -275,10 +544,12 @@ class BatchCompressionController extends ChangeNotifier {
   bool _pauseRequested = false;
   bool _cancelRequested = false;
   bool _disposed = false;
+  bool _restoreStarted = false;
   int _analyzedCount = 0;
   Completer<void>? _resumeGate;
   DateTime? _processingStartedAt;
   Timer? _notificationTimer;
+  Timer? _progressSaveTimer;
   bool _exporting = false;
 
   BatchWorkflowPhase get phase => _phase;
@@ -300,7 +571,7 @@ class BatchCompressionController extends ChangeNotifier {
 
   int get totalBytes => _items.fold<int>(
     0,
-    (int total, BatchImageItem item) => total + item.bytes,
+    (int total, BatchImageItem item) => total + _bytesOf(item),
   );
 
   int get estimatedBytes => _items.fold<int>(
@@ -308,7 +579,10 @@ class BatchCompressionController extends ChangeNotifier {
     (int total, BatchImageItem item) =>
         total +
         (item.estimatedBytes ??
-            _estimate(item.bytes, item.qualityOverride ?? _settings.quality)),
+            _estimate(
+              _bytesOf(item),
+              item.qualityOverride ?? _settings.quality,
+            )),
   );
 
   double get overallProgress {
@@ -358,7 +632,10 @@ class BatchCompressionController extends ChangeNotifier {
   int get _completedOriginalBytes => _items.fold<int>(
     0,
     (int total, BatchImageItem item) =>
-        total + (item.status == BatchQueueStatus.completed ? item.bytes : 0),
+        total +
+        (item.status == BatchQueueStatus.completed
+            ? _bytesOf(item)
+            : 0),
   );
 
   int get processingSpeedBytesPerSecond {
@@ -379,7 +656,7 @@ class BatchCompressionController extends ChangeNotifier {
           (item.status == BatchQueueStatus.waiting ||
                   item.status == BatchQueueStatus.compressing ||
                   item.status == BatchQueueStatus.paused
-              ? item.bytes
+              ? _bytesOf(item)
               : 0),
     );
     return Duration(seconds: (remainingBytes / speed).ceil());
@@ -400,7 +677,10 @@ class BatchCompressionController extends ChangeNotifier {
     originalBytes: _items.fold<int>(
       0,
       (int total, BatchImageItem item) =>
-          total + (item.status == BatchQueueStatus.completed ? item.bytes : 0),
+          total +
+          (item.status == BatchQueueStatus.completed
+              ? _bytesOf(item)
+              : 0),
     ),
     compressedBytes: _items.fold<int>(
       0,
@@ -410,6 +690,50 @@ class BatchCompressionController extends ChangeNotifier {
         ? Duration.zero
         : DateTime.now().difference(_processingStartedAt!),
   );
+
+  /// Restores a previously persisted session (items, statuses, settings) on
+  /// screen re-entry. A missing or corrupted snapshot is a quiet no-op.
+  Future<void> restoreProgress() async {
+    final BatchProgressStore? store = _progressStore;
+    if (_disposed || store == null || _restoreStarted || _items.isNotEmpty) {
+      return;
+    }
+    _restoreStarted = true;
+    try {
+      final BatchProgressSnapshot? snapshot = await store.read();
+      // Re-check the queue stayed empty while the read was in flight so a
+      // user action taken during restore is never overwritten.
+      if (_disposed ||
+          snapshot == null ||
+          snapshot.items.isEmpty ||
+          _items.isNotEmpty) {
+        return;
+      }
+      _items
+        ..clear()
+        ..addAll(snapshot.items);
+      _selectedIds
+        ..clear()
+        ..addAll(snapshot.selectedIds);
+      _settings = snapshot.settings;
+      _sessionRecordId = snapshot.sessionRecordId;
+      _bytesById
+        ..clear()
+        ..addAll(snapshot.bytesById);
+      _analyzedCount = _items
+          .where((BatchImageItem item) => !_isTerminal(item.status))
+          .length;
+      final bool allTerminal = _items.every(
+        (BatchImageItem item) => _isTerminal(item.status),
+      );
+      _phase = allTerminal
+          ? BatchWorkflowPhase.completed
+          : BatchWorkflowPhase.preview;
+      _notify(immediate: true);
+    } on Object {
+      // Corrupted progress is ignored; the batch starts fresh.
+    }
+  }
 
   Future<void> selectImages() async {
     if (_disposed || _selecting || isBusy) return;
@@ -451,13 +775,31 @@ class BatchCompressionController extends ChangeNotifier {
     if (_items.isNotEmpty && _phase == BatchWorkflowPhase.selection) {
       _phase = BatchWorkflowPhase.preview;
     }
+    // Sizes are read on demand off the picker thread so selection stays fast
+    // and never retains image contents.
+    if (_items.isNotEmpty) unawaited(refreshByteSizes());
     _notify();
   }
+
+  /// Reads the source size of every queued item on demand and caches it as
+  /// plain metadata. Missing or unreadable files keep their last known size.
+  Future<void> refreshByteSizes() async {
+    if (_disposed) return;
+    for (final BatchImageItem item in List<BatchImageItem>.of(_items)) {
+      if (_disposed) return;
+      await _loadByteSize(item);
+    }
+    if (!_disposed) _notify();
+  }
+
+  /// The last known source size for [id], or 0 when it has not been loaded.
+  int bytesOf(String id) => _bytesById[id] ?? 0;
 
   void removeImage(String id) {
     if (_disposed || isBusy) return;
     _items.removeWhere((BatchImageItem item) => item.id == id);
     _selectedIds.remove(id);
+    _bytesById.remove(id);
     if (_items.isEmpty) {
       _sessionRecordId = null;
       _phase = BatchWorkflowPhase.selection;
@@ -506,7 +848,7 @@ class BatchCompressionController extends ChangeNotifier {
       final BatchImageItem item = _items[index];
       _items[index] = item.copyWith(
         estimatedBytes: _estimate(
-          item.bytes,
+          _bytesOf(item),
           item.qualityOverride ?? settings.quality,
         ),
       );
@@ -523,7 +865,7 @@ class BatchCompressionController extends ChangeNotifier {
       qualityOverride: bounded,
       clearQualityOverride: bounded == null,
       estimatedBytes: _estimate(
-        _items[index].bytes,
+        _bytesOf(_items[index]),
         bounded ?? _settings.quality,
       ),
     );
@@ -555,7 +897,12 @@ class BatchCompressionController extends ChangeNotifier {
     _notify();
     for (int index = 0; index < _items.length; index++) {
       if (_analysisCancelled || _disposed) break;
-      _items[index] = _items[index].copyWith(
+      final BatchImageItem current = _items[index];
+      // Terminal entries (completed/failed/cancelled/skipped) keep their
+      // status across re-analysis so restored or retried sessions never
+      // re-process finished work.
+      if (_isTerminal(current.status)) continue;
+      _items[index] = current.copyWith(
         status: BatchQueueStatus.analyzing,
         progress: 0,
       );
@@ -563,6 +910,7 @@ class BatchCompressionController extends ChangeNotifier {
       await Future<void>.delayed(Duration.zero);
       if (_analysisCancelled || _disposed) break;
       final BatchImageItem item = _items[index];
+      final int bytes = await _loadByteSize(item);
       _items[index] = item.copyWith(
         status: BatchQueueStatus.waiting,
         progress: 0,
@@ -570,7 +918,7 @@ class BatchCompressionController extends ChangeNotifier {
         // Recommendations remain advisory; processing uses the global
         // setting unless an explicit per-image override exists.
         estimatedBytes: _estimate(
-          item.bytes,
+          bytes,
           item.qualityOverride ?? _settings.quality,
         ),
         clearError: true,
@@ -595,6 +943,7 @@ class BatchCompressionController extends ChangeNotifier {
       return false;
     }
     _phase = BatchWorkflowPhase.preview;
+    _scheduleProgressSave();
     _notify(immediate: true);
     return true;
   }
@@ -605,6 +954,7 @@ class BatchCompressionController extends ChangeNotifier {
     // The processor seam is currently not cancellable. Keep the active item
     // marked compressing until it returns; the pause applies between items.
     _resumeGate = Completer<void>();
+    _scheduleProgressSave();
     _notify(immediate: true);
   }
 
@@ -622,6 +972,7 @@ class BatchCompressionController extends ChangeNotifier {
     _pauseRequested = false;
     _resumeGate?.complete();
     _resumeGate = null;
+    _scheduleProgressSave();
     _notify(immediate: true);
   }
 
@@ -665,6 +1016,7 @@ class BatchCompressionController extends ChangeNotifier {
           status: BatchQueueStatus.skipped,
           progress: 0,
         );
+        _scheduleProgressSave();
         _notify();
         continue;
       }
@@ -704,13 +1056,16 @@ class BatchCompressionController extends ChangeNotifier {
           errorMessage: _cancelRequested ? null : error.toString(),
           clearError: _cancelRequested,
         );
+        _scheduleProgressSave();
         _notify(immediate: true);
         continue;
       }
+      _scheduleProgressSave();
       _notify();
     }
     _phase = BatchWorkflowPhase.completed;
     if (completedCount > 0) unawaited(_recordHistory());
+    _scheduleProgressSave();
     _notify(immediate: true);
   }
 
@@ -777,6 +1132,9 @@ class BatchCompressionController extends ChangeNotifier {
     return startProcessing(retryFailedOnly: true);
   }
 
+  /// Convenience method that retries all failed items.
+  Future<void> retryAllFailed() => retryFailed();
+
   /// Returns the queue to an empty, reusable state without retaining paths or
   /// output metadata from the previous batch.
   void startOver() {
@@ -786,12 +1144,16 @@ class BatchCompressionController extends ChangeNotifier {
     _pauseRequested = false;
     _resumeGate?.complete();
     _resumeGate = null;
+    _progressSaveTimer?.cancel();
+    _progressSaveTimer = null;
     _items.clear();
     _selectedIds.clear();
+    _bytesById.clear();
     _analyzedCount = 0;
     _sessionRecordId = null;
     _phase = BatchWorkflowPhase.selection;
     _processingStartedAt = null;
+    unawaited(_clearPersistedProgress());
     _notify(immediate: true);
   }
 
@@ -914,10 +1276,66 @@ class BatchCompressionController extends ChangeNotifier {
       status == BatchQueueStatus.cancelled ||
       status == BatchQueueStatus.skipped;
 
+  int _bytesOf(BatchImageItem item) => _bytesById[item.id] ?? 0;
+
+  Future<int> _loadByteSize(BatchImageItem item) async {
+    final int? cached = _bytesById[item.id];
+    if (cached != null) return cached;
+    try {
+      final int size = await item.getBytes();
+      if (size > 0) _bytesById[item.id] = size;
+      return size;
+    } on Object {
+      return cached ?? 0;
+    }
+  }
+
   int _recommendedQuality(BatchImageItem item) {
     if (item.width >= 4000 || item.height >= 4000) return 68;
-    if (item.bytes >= 8 * 1024 * 1024) return 70;
+    if (_bytesOf(item) >= 8 * 1024 * 1024) return 70;
     return _settings.quality;
+  }
+
+  /// Persists the current session state after a short debounce so rapid queue
+  /// progress coalesces into one small write instead of hundreds.
+  void _scheduleProgressSave() {
+    final BatchProgressStore? store = _progressStore;
+    if (_disposed || store == null) return;
+    _progressSaveTimer?.cancel();
+    _progressSaveTimer = Timer(const Duration(milliseconds: 400), () {
+      _progressSaveTimer = null;
+      if (_disposed) return;
+      unawaited(_persistProgress(store));
+    });
+  }
+
+  Future<void> _persistProgress(BatchProgressStore store) async {
+    if (_disposed) return;
+    try {
+      await store.write(
+        BatchProgressSnapshot(
+          version: 1,
+          items: List<BatchImageItem>.of(_items),
+          settings: _settings,
+          selectedIds: List<String>.of(_selectedIds),
+          bytesById: Map<String, int>.of(_bytesById),
+          sessionRecordId: _sessionRecordId,
+          savedAt: DateTime.now(),
+        ),
+      );
+    } on Object {
+      // Persistence is best effort and must never fail the workflow.
+    }
+  }
+
+  Future<void> _clearPersistedProgress() async {
+    final BatchProgressStore? store = _progressStore;
+    if (store == null) return;
+    try {
+      await store.clear();
+    } on Object {
+      // Best effort.
+    }
   }
 
   void _notify({bool immediate = false}) {
@@ -943,18 +1361,46 @@ class BatchCompressionController extends ChangeNotifier {
     _disposed = true;
     _notificationTimer?.cancel();
     _notificationTimer = null;
+    _progressSaveTimer?.cancel();
+    _progressSaveTimer = null;
     _analysisCancelled = true;
     _cancelRequested = true;
     _resumeGate?.complete();
     _resumeGate = null;
     _items.clear();
     _selectedIds.clear();
+    _bytesById.clear();
     _sessionRecordId = null;
     super.dispose();
   }
 
   int _estimate(int bytes, int quality) {
+    if (bytes <= 0) return 0;
     final double factor = .18 + quality / 100 * .62;
     return (bytes * factor).round().clamp(1, bytes).toInt();
   }
+}
+
+BatchQueueStatus? _batchStatusFromName(Object? value) {
+  if (value is! String) return null;
+  for (final BatchQueueStatus status in BatchQueueStatus.values) {
+    if (status.name == value) return status;
+  }
+  return null;
+}
+
+BatchOutputFormat? _batchFormatFromName(Object? value) {
+  if (value is! String) return null;
+  for (final BatchOutputFormat format in BatchOutputFormat.values) {
+    if (format.name == value) return format;
+  }
+  return null;
+}
+
+BatchResizeChoice? _resizeChoiceFromName(Object? value) {
+  if (value is! String) return null;
+  for (final BatchResizeChoice choice in BatchResizeChoice.values) {
+    if (choice.name == value) return choice;
+  }
+  return null;
 }

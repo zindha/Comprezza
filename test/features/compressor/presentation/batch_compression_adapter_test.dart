@@ -29,7 +29,8 @@ void main() {
 
       expect(adapter.controller.items, hasLength(2));
       expect(adapter.controller.items[0].name, 'a.jpg');
-      expect(adapter.controller.items[0].bytes, 8000);
+      // Sizes are metadata read on demand, never retained at pick time.
+      expect(adapter.controller.bytesOf(adapter.controller.items[0].id), 0);
       expect(adapter.controller.items[0].width, 1200);
       expect(adapter.controller.items[0].height, 900);
       expect(adapter.controller.items[0].format, 'jpg');

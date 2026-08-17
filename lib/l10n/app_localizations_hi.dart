@@ -278,6 +278,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get batchCancel => 'कतार रद्द करें';
 
   @override
+  String get batchRetryAll => 'सभी फिर से करें';
+
+  @override
   String get batchRetryFailed => 'असफल फिर करें';
 
   @override
@@ -824,6 +827,9 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get estimatedSavings => 'अनुमानित बचत';
+
+  @override
+  String get estimatedTimeRemaining => 'अनुमानित शेष समय';
 
   @override
   String get compressionRatio => 'कंप्रेशन अनुपात';

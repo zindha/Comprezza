@@ -41,11 +41,13 @@ final class BatchCompressionAdapter implements Disposable {
     ImageExportGateway? exportGateway,
     ShareExportService? shareService,
     StorageManager? storage,
+    BatchProgressStore? progressStore,
   }) : controller = BatchCompressionController(
          picker: () => _pickImages(picker, compression),
          processor: (BatchImageItem image, BatchCompressionSettings settings) =>
              _process(compression, image, settings),
          history: history,
+         progressStore: progressStore,
          saveAllHandler: exportGateway == null
              ? null
              : (List<String> paths) => _saveAll(exportGateway, paths),
@@ -87,12 +89,13 @@ final class BatchCompressionAdapter implements Disposable {
     for (final SelectedFile file in files) {
       try {
         final PhotoAsset asset = await compression.inspect(file.path);
+        // The item stores only metadata plus its path; sizes are read on
+        // demand by the controller so large selections stay memory-bounded.
         items.add(
           BatchImageItem(
             id: file.path,
             path: file.path,
             name: file.name,
-            bytes: asset.bytes,
             width: asset.width,
             height: asset.height,
             format: _formatOf(file.path),
@@ -113,7 +116,9 @@ final class BatchCompressionAdapter implements Disposable {
     final CompressedAsset output = await compression.compress(
       PhotoAsset(
         filePath: image.path,
-        bytes: image.bytes,
+        // The source size is metadata read on demand by the controller; the
+        // engine does not use it for encoding.
+        bytes: 0,
         width: image.width,
         height: image.height,
       ),
