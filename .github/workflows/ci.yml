@@ -164,5 +164,20 @@ jobs:
           else
             notes="Comprezza v${version} (build ${short_sha})."
           fi
-          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
-          gh release create latest "${apks[@]}" --title "Latest" --notes "$notes" --latest
+
+          # Replace the previous rolling release. Delete is best-effort: the
+          # first publish has nothing to remove, and a stale release that
+          # survives a transient delete failure is retried below. gh's
+          # --cleanup-tag only removes the local tag, so also drop the remote
+          # tag to make `gh release create latest` point the new release at
+          # this build instead of reusing the old tag.
+          for attempt in 1 2 3; do
+            gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+            git push origin :refs/tags/latest 2>/dev/null || true
+            if gh release create latest "${apks[@]}" --title "Latest" --notes "$notes" --latest; then
+              exit 0
+            fi
+            echo "Release publish failed (attempt ${attempt}/3); retrying..." >&2
+            sleep 5
+          done
+          exit 1
