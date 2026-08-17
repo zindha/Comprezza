@@ -28,7 +28,7 @@ abstract final class ErrorMapper {
       );
     }
     if (error is FileSystemException) {
-      final String osMessage = error.osError?.message?.toLowerCase() ?? '';
+      final String osMessage = error.osError?.message.toLowerCase() ?? '';
       final ErrorCode? classified = _classify(osMessage);
       if (classified != null) {
         return _exception(
@@ -66,7 +66,7 @@ abstract final class ErrorMapper {
     if (error is PlatformException) {
       final String haystack = <String>[
         error.code,
-        '${error.message ?? ''}',
+        error.message ?? '',
         '${error.details ?? ''}',
       ].join(' ').toLowerCase();
       final ErrorCode? classified = _classify(haystack);
@@ -89,12 +89,7 @@ abstract final class ErrorMapper {
     // boundary as plain objects (e.g. native codec exceptions) by message.
     final ErrorCode? classified = _classify(error.toString().toLowerCase());
     if (classified != null) {
-      return _exception(
-        classified,
-        _messageFor(classified),
-        error,
-        stackTrace,
-      );
+      return _exception(classified, _messageFor(classified), error, stackTrace);
     }
     return AppException(
       code: ErrorCode.unknown,

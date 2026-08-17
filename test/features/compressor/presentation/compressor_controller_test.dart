@@ -35,7 +35,7 @@ void main() {
         ..status = CompressorStatus.ready;
 
       final bool saved = await controller.saveToDevice();
-      await pumpEventQueue();
+      await _waitForSaved(history, 1);
 
       expect(saved, isTrue);
       expect(history.saved, hasLength(1));
@@ -75,7 +75,7 @@ void main() {
         ..status = CompressorStatus.ready;
 
       final bool shared = await controller.shareImage();
-      await pumpEventQueue();
+      await _waitForSaved(history, 1);
 
       expect(shared, isTrue);
       expect(history.saved, hasLength(1));
@@ -149,9 +149,9 @@ void main() {
         // a second export of the same source+settings updates the existing
         // record instead of inserting a duplicate.
         await controller.saveToDevice();
-        await pumpEventQueue();
+        await _waitForSaved(history, 1);
         await controller.saveToDevice();
-        await pumpEventQueue();
+        await _waitForSaved(history, 1);
 
         expect(history.saved, hasLength(1));
         expect(history.saved.single.savedBytes, 1500000);
@@ -187,7 +187,7 @@ void main() {
           ..status = CompressorStatus.ready;
 
         await controller.saveToDevice();
-        await pumpEventQueue();
+        await _waitForSaved(history, 1);
         final String firstId = history.saved.single.id;
 
         // A different quality yields a different record id, so both entries
@@ -202,7 +202,7 @@ void main() {
           format: CompressorFormat.jpeg,
         );
         await controller.saveToDevice();
-        await pumpEventQueue();
+        await _waitForSaved(history, 2);
 
         expect(history.saved, hasLength(2));
         expect(history.saved[1].id, isNot(firstId));
@@ -237,12 +237,24 @@ void main() {
         ..status = CompressorStatus.ready;
 
       final bool saved = await controller.saveToDevice();
-      await pumpEventQueue();
+      await _waitForSaved(history, 1);
 
       expect(saved, isTrue);
       expect(history.saved.single.preset, startsWith('Target '));
     });
   });
+}
+
+/// Waits until [history] contains at least [count] records.
+///
+/// Recording is unawaited by design and hashes the source on a spawned
+/// isolate, so a fixed pump count is not enough to guarantee the write landed
+/// under load. Poll with a deadline instead.
+Future<void> _waitForSaved(_RecordingHistory history, int count) async {
+  final DateTime deadline = DateTime.now().add(const Duration(seconds: 5));
+  while (history.saved.length < count && DateTime.now().isBefore(deadline)) {
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
 }
 
 final class _RecordingHistory implements HistoryStorage {

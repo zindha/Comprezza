@@ -1506,13 +1506,9 @@ class _SummaryCard extends StatelessWidget {
             // One tap retries every failed item; the queue card then shows
             // the retry progress live.
             FilledButton.tonalIcon(
-              onPressed: controller.isBusy
-                  ? null
-                  : controller.retryAllFailed,
+              onPressed: controller.isBusy ? null : controller.retryAllFailed,
               icon: const Icon(Icons.refresh_rounded),
-              label: Text(
-                '${l10n.batchRetryAll} (${summary.failed})',
-              ),
+              label: Text('${l10n.batchRetryAll} (${summary.failed})'),
             ),
           ],
         ],

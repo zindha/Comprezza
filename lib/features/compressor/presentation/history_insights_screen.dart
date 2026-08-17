@@ -25,7 +25,6 @@ Future<void> _runHistoryAction(
         SnackBar(
           content: Text(AppLocalizations.of(context).genericError),
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -221,7 +220,6 @@ class _HistoryInsightsScreenState extends State<HistoryInsightsScreen>
       SnackBar(
         content: Text(AppLocalizations.of(context).genericError),
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 4),
       ),
     );
   }

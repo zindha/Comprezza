@@ -33,7 +33,9 @@ void main() {
   /// Builds an item backed by a real temp file so on-demand byte sizes load.
   Future<BatchImageItem> realImage(String id, {int bytes = 1000}) async {
     final File file = File(p.join(tempDir.path, '$id.jpg'));
-    await file.writeAsBytes(List<int>.generate(bytes, (int index) => index % 251));
+    await file.writeAsBytes(
+      List<int>.generate(bytes, (int index) => index % 251),
+    );
     return BatchImageItem(
       id: id,
       path: file.path,
@@ -110,9 +112,7 @@ void main() {
   test('analysis exposes recommendations and can be cancelled', () async {
     final BatchCompressionController featureController = controller();
     addTearDown(featureController.dispose);
-    featureController.addImages(<BatchImageItem>[
-      image('large'),
-    ]);
+    featureController.addImages(<BatchImageItem>[image('large')]);
 
     final Future<bool> analysis = featureController.analyze();
     featureController.cancelAnalysis();
@@ -182,13 +182,13 @@ void main() {
       image('bad-b'),
       image('good'),
     ]);
-    // Deselect one failed item to prove retryAllFailed re-selects it.
-    featureController.toggleSelection('bad-b');
-
     await featureController.startProcessing();
 
     expect(featureController.failedCount, 2);
     expect(featureController.completedCount, 1);
+
+    // Deselect one failed item to prove retryAllFailed re-selects it.
+    featureController.toggleSelection('bad-b');
 
     await featureController.retryAllFailed();
 
@@ -359,9 +359,7 @@ void main() {
     () async {
       final BatchCompressionController featureController = controller();
       addTearDown(featureController.dispose);
-      featureController.addImages(<BatchImageItem>[
-        await realImage('one', bytes: 1000),
-      ]);
+      featureController.addImages(<BatchImageItem>[await realImage('one')]);
       await featureController.refreshByteSizes();
       final int initial = featureController.estimatedBytes;
 
@@ -555,9 +553,7 @@ void main() {
         progressStore: store,
       );
       addTearDown(featureController.dispose);
-      featureController.addImages(<BatchImageItem>[
-        await realImage('one'),
-      ]);
+      featureController.addImages(<BatchImageItem>[await realImage('one')]);
       await featureController.startProcessing();
       await Future<void>.delayed(const Duration(milliseconds: 600));
       expect(store.snapshot, isNotNull);

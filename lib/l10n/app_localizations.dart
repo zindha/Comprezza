@@ -1640,17 +1640,17 @@ abstract class AppLocalizations {
   /// **'Estimated output'**
   String get estimatedSize;
 
-  /// No description provided for @estimatedTimeRemaining.
-  ///
-  /// In en, this message translates to:
-  /// **'Estimated time remaining'**
-  String get estimatedTimeRemaining;
-
   /// No description provided for @estimatedSavings.
   ///
   /// In en, this message translates to:
   /// **'Estimated savings'**
   String get estimatedSavings;
+
+  /// No description provided for @estimatedTimeRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated time remaining'**
+  String get estimatedTimeRemaining;
 
   /// No description provided for @compressionRatio.
   ///

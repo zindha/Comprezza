@@ -15,30 +15,36 @@ void main() {
     expect(exception.isRecoverable, isTrue);
   });
 
-  test('maps storage, permission, memory, and format failures to friendly codes',
-      () {
-    final AppException noSpace = ErrorMapper.map(
-      FileSystemException('write', osError: OSError(28, 'No space left on device')),
-    );
-    expect(noSpace.code, ErrorCode.storageFull);
-    expect(noSpace.message, 'There is not enough storage space available.');
+  test(
+    'maps storage, permission, memory, and format failures to friendly codes',
+    () {
+      final AppException noSpace = ErrorMapper.map(
+        const FileSystemException(
+          'write',
+          '',
+          OSError('No space left on device', 28),
+        ),
+      );
+      expect(noSpace.code, ErrorCode.storageFull);
+      expect(noSpace.message, 'There is not enough storage space available.');
 
-    final AppException denied = ErrorMapper.map(
-      FileSystemException('open', osError: OSError(13, 'Permission denied')),
-    );
-    expect(denied.code, ErrorCode.permissionDenied);
-    expect(
-      denied.message,
-      'Comprezza does not have permission to access that file.',
-    );
+      final AppException denied = ErrorMapper.map(
+        const FileSystemException('open', '', OSError('Permission denied', 13)),
+      );
+      expect(denied.code, ErrorCode.permissionDenied);
+      expect(
+        denied.message,
+        'Comprezza does not have permission to access that file.',
+      );
 
-    final AppException oom = ErrorMapper.map(OutOfMemoryError());
-    expect(oom.code, ErrorCode.outOfMemory);
+      final AppException oom = ErrorMapper.map(const OutOfMemoryError());
+      expect(oom.code, ErrorCode.outOfMemory);
 
-    final AppException unsupported = ErrorMapper.map(
-      PlatformException(code: 'unsupported format', message: 'Bad format'),
-    );
-    expect(unsupported.code, ErrorCode.unsupportedFormat);
-    expect(unsupported.isRecoverable, isFalse);
-  });
+      final AppException unsupported = ErrorMapper.map(
+        PlatformException(code: 'unsupported format', message: 'Bad format'),
+      );
+      expect(unsupported.code, ErrorCode.unsupportedFormat);
+      expect(unsupported.isRecoverable, isFalse);
+    },
+  );
 }

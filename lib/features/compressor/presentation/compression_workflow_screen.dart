@@ -1591,7 +1591,10 @@ class _ProcessingCardState extends State<_ProcessingCard> {
               child: const ExcludeSemantics(child: LinearProgressIndicator()),
             ),
             const SizedBox(height: 14),
-            Text(widget.message, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              widget.message,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 4),
             Text(
               l10n.processingImage,

@@ -202,7 +202,6 @@ class AboutScreen extends StatelessWidget {
       SnackBar(
         content: Text(AppLocalizations.of(context).genericError),
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -238,7 +237,6 @@ class AboutScreen extends StatelessWidget {
         SnackBar(
           content: Text(l10n.settingsExportFailed),
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
         ),
       );
     } catch (_) {
@@ -247,7 +245,6 @@ class AboutScreen extends StatelessWidget {
         SnackBar(
           content: Text(l10n.settingsExportFailed),
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
         ),
       );
     }

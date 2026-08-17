@@ -169,7 +169,9 @@ class BatchImageItem {
           ? override.toInt().clamp(1, 100).toInt()
           : null,
       status: _batchStatusFromName(json['status']) ?? BatchQueueStatus.waiting,
-      progress: progress is num ? progress.toDouble().clamp(0, 1).toDouble() : 0,
+      progress: progress is num
+          ? progress.toDouble().clamp(0, 1).toDouble()
+          : 0,
       errorMessage: json['errorMessage'] is String
           ? json['errorMessage']! as String
           : null,
@@ -443,9 +445,8 @@ final class FileBatchProgressStore implements BatchProgressStore {
 
   static const String _fileName = 'batch_progress.json';
 
-  Future<File> _file() async => File(
-    p.join((await _directoryProvider()).path, _fileName),
-  );
+  Future<File> _file() async =>
+      File(p.join((await _directoryProvider()).path, _fileName));
 
   @override
   Future<BatchProgressSnapshot?> read() async {
@@ -633,9 +634,7 @@ class BatchCompressionController extends ChangeNotifier {
     0,
     (int total, BatchImageItem item) =>
         total +
-        (item.status == BatchQueueStatus.completed
-            ? _bytesOf(item)
-            : 0),
+        (item.status == BatchQueueStatus.completed ? _bytesOf(item) : 0),
   );
 
   int get processingSpeedBytesPerSecond {
@@ -678,9 +677,7 @@ class BatchCompressionController extends ChangeNotifier {
       0,
       (int total, BatchImageItem item) =>
           total +
-          (item.status == BatchQueueStatus.completed
-              ? _bytesOf(item)
-              : 0),
+          (item.status == BatchQueueStatus.completed ? _bytesOf(item) : 0),
     ),
     compressedBytes: _items.fold<int>(
       0,
@@ -789,7 +786,10 @@ class BatchCompressionController extends ChangeNotifier {
       if (_disposed) return;
       await _loadByteSize(item);
     }
-    if (!_disposed) _notify();
+    // This is a one-shot bulk refresh, so notify synchronously instead of
+    // leaving a coalescing timer that tests and rapid add/remove flows would
+    // have to wait out.
+    if (!_disposed) _notify(immediate: true);
   }
 
   /// The last known source size for [id], or 0 when it has not been loaded.

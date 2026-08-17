@@ -53,7 +53,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SnackBar(
             content: Text(_errorMessage(error, AppLocalizations.of(context))),
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
           ),
         );
       });
@@ -157,7 +156,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(
           content: Text(AppLocalizations.of(context).settingsExportFailed),
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
         ),
       );
     } catch (_) {
@@ -166,7 +164,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(
           content: Text(AppLocalizations.of(context).settingsExportFailed),
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -203,7 +200,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(
           content: Text(AppLocalizations.of(context).settingsExportFailed),
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
         ),
       );
       return;
@@ -213,7 +209,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(
           content: Text(AppLocalizations.of(context).settingsExportFailed),
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
         ),
       );
       return;
@@ -945,7 +940,6 @@ class _SettingsContent extends StatelessWidget {
       SnackBar(
         content: Text(AppLocalizations.of(context).genericError),
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 4),
       ),
     );
   }
