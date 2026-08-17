@@ -1,6 +1,6 @@
 # Comprezza Privacy Policy
 
-**Effective date:** `[REPLACE_WITH_EFFECTIVE_DATE]`
+**Effective date:** `2026-08-17`
 **Publisher:** Dzynova Technologies
 **App:** Comprezza – Photo Compressor & Converter
 **Package:** `com.dzynova.comprezza`
@@ -10,7 +10,7 @@
 > stable HTTPS URL, and enter that exact URL in Google Play Console and in the
 > app's legal destination.**
 >
-> - Effective date: `[REPLACE_WITH_EFFECTIVE_DATE]`
+> - Effective date: `2026-08-17`
 > - Privacy contact email: `zindhak@gmail.com`
 > - Support contact email: `zindhak@gmail.com`
 > - Publisher address and jurisdiction: `[REPLACE_WITH_LEGAL_ENTITY_ADDRESS_AND_JURISDICTION]`
