@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fully transparent splash icon. The Android 12+ system splash always masks
+     the icon into a circle, which would distort the square Comprezza logo. The
+     branding is rendered by the Flutter SplashScreen instead, so the native
+     splash shows only the brand background color. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/transparent" />
+</layer-list>

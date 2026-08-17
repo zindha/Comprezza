@@ -15,6 +15,12 @@ abstract final class AppRoutes {
   /// Root application route identity.
   static const AppRoute homeRoute = AppRoute.home;
 
+  /// Branded splash route shown on cold start.
+  static const String splash = '/splash';
+
+  /// Branded splash route location.
+  static String get splashLocation => splash;
+
   /// Root application route location.
   static const String home = '/';
 

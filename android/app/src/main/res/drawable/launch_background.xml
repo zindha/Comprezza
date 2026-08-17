@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Pre-Android-12 launch background. The logo previously lived here, but the
+     branding (logo + app name + tagline) is rendered by the Flutter
+     SplashScreen for a consistent, unmasked look across all Android versions.
+     This layer keeps the native window background at the brand color so the
+     handoff to the Flutter splash is seamless. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/comprezza_splash_background" />
-    <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@drawable/splash_logo" />
-    </item>
 </layer-list>

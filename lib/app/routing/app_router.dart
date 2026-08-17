@@ -9,6 +9,7 @@ import '../../features/compressor/presentation/home_dashboard.dart';
 import '../../features/compressor/presentation/settings/settings_screen.dart';
 import '../di/app_dependencies.dart';
 import '../navigation/main_navigation_shell.dart';
+import '../splash_screen.dart';
 import 'app_routes.dart';
 
 /// Creates the application router without importing feature implementations.
@@ -19,8 +20,13 @@ abstract final class AppRouter {
     required WidgetBuilder compressionBuilder,
   }) {
     return GoRouter(
-      initialLocation: AppRoutes.homeLocation,
+      initialLocation: AppRoutes.splashLocation,
       routes: <RouteBase>[
+        GoRoute(
+          path: AppRoutes.splash,
+          builder: (BuildContext context, GoRouterState _) =>
+              const SplashScreen(),
+        ),
         ShellRoute(
           builder: (BuildContext context, GoRouterState state, Widget child) =>
               MainNavigationShell(
